@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #fafafa;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', serif;
+}
+
+.btn-primary {
+  @apply bg-yckc-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-yckc-accent transition-colors;
+}
+
+.btn-secondary {
+  @apply bg-yckc-secondary text-yckc-primary px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity;
+}
+
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+}
