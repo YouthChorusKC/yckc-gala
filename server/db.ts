@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 import path from 'path'
+import fs from 'fs'
 
 const DB_PATH = process.env.DATABASE_PATH || './data/gala.db'
 
@@ -7,6 +8,11 @@ let db: Database.Database
 
 export function getDb(): Database.Database {
   if (!db) {
+    // Ensure directory exists
+    const dbDir = path.dirname(DB_PATH)
+    if (dbDir && dbDir !== '.' && !fs.existsSync(dbDir)) {
+      fs.mkdirSync(dbDir, { recursive: true })
+    }
     db = new Database(DB_PATH)
     db.pragma('journal_mode = WAL')
   }
