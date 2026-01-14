@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getOrders, getOrder, type Order } from '../../lib/api'
+import { getOrders, getOrder, completeOrder, type Order } from '../../lib/api'
 import { formatCents } from '../../lib/cart'
 
 export default function AdminOrders() {
@@ -8,6 +8,7 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true)
   const [selectedOrder, setSelectedOrder] = useState<any>(null)
   const [statusFilter, setStatusFilter] = useState<string>('')
+  const [completing, setCompleting] = useState(false)
 
   useEffect(() => {
     loadOrders()
@@ -28,6 +29,20 @@ export default function AdminOrders() {
   const viewOrder = async (id: string) => {
     const data = await getOrder(id)
     setSelectedOrder(data)
+  }
+
+  const handleCompleteOrder = async (id: string) => {
+    if (!confirm('Mark this order as paid? This will create attendees and raffle entries.')) return
+    setCompleting(true)
+    try {
+      await completeOrder(id)
+      loadOrders()
+      viewOrder(id)
+    } catch (err: any) {
+      alert('Failed: ' + err.message)
+    } finally {
+      setCompleting(false)
+    }
   }
 
   return (
@@ -129,7 +144,9 @@ export default function AdminOrders() {
                   <div>
                     <span className="text-gray-500">Status:</span>
                     <span className={`ml-2 px-2 py-1 rounded text-xs font-medium ${
-                      selectedOrder.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-gray-100'
+                      selectedOrder.status === 'paid' ? 'bg-green-100 text-green-700' :
+                      selectedOrder.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100'
                     }`}>
                       {selectedOrder.status}
                     </span>
@@ -148,6 +165,17 @@ export default function AdminOrders() {
                   )}
                 </div>
 
+                {/* Complete Order Button for pending orders */}
+                {selectedOrder.status === 'pending' && (
+                  <button
+                    onClick={() => handleCompleteOrder(selectedOrder.id)}
+                    disabled={completing}
+                    className="w-full mt-4 bg-green-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-green-700 disabled:opacity-50"
+                  >
+                    {completing ? 'Processing...' : 'Mark as Paid (Test Mode)'}
+                  </button>
+                )}
+
                 <h3 className="font-semibold mt-6 mb-2">Items</h3>
                 <ul className="text-sm space-y-1">
                   {selectedOrder.items?.map((item: any) => (
@@ -159,12 +187,27 @@ export default function AdminOrders() {
 
                 <h3 className="font-semibold mt-6 mb-2">Attendees ({selectedOrder.attendees?.length || 0})</h3>
                 <ul className="text-sm space-y-1">
-                  {selectedOrder.attendees?.map((a: any, i: number) => (
-                    <li key={a.id} className={a.name ? '' : 'text-orange-600'}>
-                      {i + 1}. {a.name || '(Name needed)'}
+                  {selectedOrder.attendees?.length > 0 ? (
+                    selectedOrder.attendees.map((a: any, i: number) => (
+                      <li key={a.id} className={a.name ? '' : 'text-orange-600'}>
+                        {i + 1}. {a.name || '(Name needed)'}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-gray-500 italic">
+                      {selectedOrder.status === 'pending' ? 'Complete order to create attendees' : 'No attendees'}
                     </li>
-                  ))}
+                  )}
                 </ul>
+
+                {selectedOrder.raffleEntries?.length > 0 && (
+                  <>
+                    <h3 className="font-semibold mt-6 mb-2">Raffle Entries ({selectedOrder.raffleEntries.length})</h3>
+                    <div className="text-sm text-gray-600">
+                      Entry numbers: {selectedOrder.raffleEntries.map((e: any) => e.entry_number).join(', ')}
+                    </div>
+                  </>
+                )}
               </div>
             ) : (
               <div className="card text-gray-500 text-center py-8">

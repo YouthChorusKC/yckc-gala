@@ -3,6 +3,15 @@ import { getDb } from '../db.js'
 
 const router = Router()
 
+// Simple admin auth middleware for product modifications
+function requireAdmin(req: any, res: any, next: any) {
+  const password = req.headers['x-admin-password']
+  if (password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+  next()
+}
+
 // Get all active products grouped by category
 router.get('/', (req, res) => {
   const db = getDb()
@@ -33,6 +42,53 @@ router.get('/:id', (req, res) => {
   }
 
   res.json(product)
+})
+
+// Update product (admin only)
+router.patch('/:id', requireAdmin, (req, res) => {
+  const db = getDb()
+  const { id } = req.params
+  const { name, description, price_cents, quantity_available, is_active } = req.body
+
+  const product = db.prepare('SELECT * FROM products WHERE id = ?').get(id)
+  if (!product) {
+    return res.status(404).json({ error: 'Product not found' })
+  }
+
+  // Build update query dynamically based on provided fields
+  const updates: string[] = []
+  const values: any[] = []
+
+  if (name !== undefined) {
+    updates.push('name = ?')
+    values.push(name)
+  }
+  if (description !== undefined) {
+    updates.push('description = ?')
+    values.push(description)
+  }
+  if (price_cents !== undefined) {
+    updates.push('price_cents = ?')
+    values.push(price_cents)
+  }
+  if (quantity_available !== undefined) {
+    updates.push('quantity_available = ?')
+    values.push(quantity_available)
+  }
+  if (is_active !== undefined) {
+    updates.push('is_active = ?')
+    values.push(is_active ? 1 : 0)
+  }
+
+  if (updates.length === 0) {
+    return res.status(400).json({ error: 'No fields to update' })
+  }
+
+  values.push(id)
+  db.prepare(`UPDATE products SET ${updates.join(', ')} WHERE id = ?`).run(...values)
+
+  const updated = db.prepare('SELECT * FROM products WHERE id = ?').get(id)
+  res.json(updated)
 })
 
 export default router

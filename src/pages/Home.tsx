@@ -3,14 +3,29 @@ import { Link } from 'react-router-dom'
 import { getProducts, type Product, type ProductsResponse } from '../lib/api'
 import { useCart, formatCents } from '../lib/cart'
 import TicketCard from '../components/TicketCard'
-import RaffleUpsell from '../components/RaffleUpsell'
+import RaffleModal from '../components/RaffleModal'
 import CartSummary from '../components/CartSummary'
+
+// Generate random stars for background
+const generateStars = (count: number) => {
+  return Array.from({ length: count }, (_, i) => ({
+    id: i,
+    left: Math.random() * 100,
+    top: Math.random() * 100,
+    size: Math.random() * 2 + 1,
+    delay: Math.random() * 3,
+    duration: Math.random() * 2 + 2,
+  }))
+}
+
+const stars = generateStars(50)
 
 export default function Home() {
   const [products, setProducts] = useState<ProductsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const { itemCount } = useCart()
+  const [showRaffleModal, setShowRaffleModal] = useState(false)
+  const { itemCount, items } = useCart()
 
   useEffect(() => {
     getProducts()
@@ -19,80 +34,234 @@ export default function Home() {
       .finally(() => setLoading(false))
   }, [])
 
+  // Check if cart has tickets (for raffle upsell)
+  const hasTicketsInCart = items.some(item =>
+    item.product.category === 'ticket' || item.product.category === 'sponsorship'
+  )
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-gray-500">Loading...</div>
+      <div className="min-h-screen gala-bg flex items-center justify-center">
+        <div className="text-gala-gold">Loading...</div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-red-500">Error: {error}</div>
+      <div className="min-h-screen gala-bg flex items-center justify-center">
+        <div className="text-red-400">Error: {error}</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-yckc-primary/5 to-white">
-      {/* Header */}
-      <header className="bg-yckc-primary text-white py-8">
-        <div className="max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-2">YCKC Gala 2025</h1>
-          <p className="text-xl text-white/80">April 9, 2025</p>
-          <p className="mt-4 text-lg">Join us for an evening of music, celebration, and community</p>
+    <div className="min-h-screen">
+      {/* Hero Section - Navy with stars */}
+      <header className="gala-bg text-white relative overflow-hidden">
+        {/* Animated stars */}
+        {stars.map(star => (
+          <div
+            key={star.id}
+            className="star"
+            style={{
+              left: `${star.left}%`,
+              top: `${star.top}%`,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              animationDelay: `${star.delay}s`,
+              animationDuration: `${star.duration}s`,
+            }}
+          />
+        ))}
+
+        <div className="max-w-4xl mx-auto px-4 py-16 md:py-24 text-center relative z-10">
+          {/* Starburst graphic */}
+          <div className="flex justify-center mb-6">
+            <img
+              src="/starburst.png"
+              alt=""
+              className="w-32 h-32 md:w-40 md:h-40 object-contain"
+            />
+          </div>
+
+          {/* Title */}
+          <h1 className="gala-title text-4xl md:text-6xl lg:text-7xl gold-text mb-4">
+            A Sky Full of Stars
+          </h1>
+
+          {/* Subtitle */}
+          <p className="elegant-text text-xl md:text-2xl text-gala-gold/90 uppercase tracking-[0.2em] mb-2">
+            Youth Chorus of Kansas City
+          </p>
+          <p className="elegant-text text-lg text-white/70 uppercase tracking-[0.15em] mb-8">
+            Gala 2026
+          </p>
+
+          {/* Event details */}
+          <div className="inline-block bg-gala-gold text-gala-navy px-8 py-3 rounded-full font-semibold text-lg mb-8">
+            Thursday, April 9, 2026
+          </div>
+
+          <p className="text-white/80 text-lg max-w-2xl mx-auto mb-10">
+            Join us for an elegant evening of music, celebration, and community as we support
+            the next generation of young singers.
+          </p>
+
+          {/* CTA */}
+          <a href="#tickets" className="btn-gold text-lg px-10 py-4 inline-block">
+            Get Your Tickets
+          </a>
         </div>
+
+        {/* Gradient fade to white */}
+        <div className="h-24 bg-gradient-to-b from-transparent to-gala-cream" />
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-12">
-        {/* Tickets Section */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-yckc-primary mb-6">Tickets</h2>
-          <div className="grid md:grid-cols-2 gap-6">
-            {products?.ticket.map(product => (
-              <TicketCard key={product.id} product={product} />
-            ))}
-          </div>
-        </section>
+      {/* Main Content - Cream background */}
+      <main className="bg-gala-cream">
+        <div className="max-w-6xl mx-auto px-4 py-12">
 
-        {/* Sponsorship Section */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-yckc-primary mb-2">Sponsorship Packages</h2>
-          <p className="text-gray-600 mb-6">Support YCKC and receive special recognition</p>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {products?.sponsorship.map(product => (
-              <TicketCard key={product.id} product={product} featured={product.price_cents >= 150000} />
-            ))}
-          </div>
-        </section>
+          {/* Tickets Section */}
+          <section id="tickets" className="mb-16 scroll-mt-8">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl md:text-4xl font-bold text-gala-navy mb-2">Tickets</h2>
+              <p className="text-gray-600 elegant-text text-lg">Secure your seats for this special evening</p>
+            </div>
+            <div className="grid md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+              {products?.ticket.map(product => (
+                <TicketCard key={product.id} product={product} />
+              ))}
+            </div>
+          </section>
 
-        {/* Raffle Section */}
-        <section className="mb-16">
-          <h2 className="text-3xl font-bold text-yckc-primary mb-2">Golden Raffle</h2>
-          <p className="text-gray-600 mb-6">Purchase raffle tickets for a chance to win amazing prizes!</p>
-          <RaffleUpsell products={products?.raffle || []} />
-        </section>
+          {/* Sponsorship Section */}
+          <section className="mb-16">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl md:text-4xl font-bold text-gala-navy mb-2">Sponsorship Packages</h2>
+              <p className="text-gray-600 elegant-text text-lg">Support YCKC and receive special recognition</p>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {products?.sponsorship.map(product => (
+                <TicketCard
+                  key={product.id}
+                  product={product}
+                  featured={product.price_cents >= 150000}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Golden Raffle Teaser */}
+          <section className="mb-16">
+            <div className="gala-bg rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
+              {/* Mini stars */}
+              {stars.slice(0, 20).map(star => (
+                <div
+                  key={star.id}
+                  className="star"
+                  style={{
+                    left: `${star.left}%`,
+                    top: `${star.top}%`,
+                    width: `${star.size}px`,
+                    height: `${star.size}px`,
+                    animationDelay: `${star.delay}s`,
+                    animationDuration: `${star.duration}s`,
+                  }}
+                />
+              ))}
+
+              <div className="relative z-10">
+                <h2 className="text-3xl md:text-4xl font-bold gold-text mb-4">Golden Raffle</h2>
+                <p className="text-white/80 text-lg mb-6 max-w-xl mx-auto">
+                  Purchase raffle entries for a chance to win amazing prizes!
+                  The more entries you have, the better your odds.
+                </p>
+                <div className="flex flex-wrap justify-center gap-4 mb-6">
+                  <div className="bg-gala-navyLight/50 backdrop-blur px-6 py-3 rounded-lg border border-gala-gold/30">
+                    <div className="text-gala-gold text-2xl font-bold">1 Entry</div>
+                    <div className="text-white/70">$25</div>
+                  </div>
+                  <div className="bg-gala-navyLight/50 backdrop-blur px-6 py-3 rounded-lg border border-gala-gold/30">
+                    <div className="text-gala-gold text-2xl font-bold">5 Entries</div>
+                    <div className="text-white/70">$100 <span className="text-green-400 text-sm">(Save $25)</span></div>
+                  </div>
+                  <div className="bg-gala-gold/20 backdrop-blur px-6 py-3 rounded-lg border-2 border-gala-gold">
+                    <div className="text-gala-gold text-2xl font-bold">12 Entries</div>
+                    <div className="text-white/70">$200 <span className="text-green-400 text-sm">(Best Value!)</span></div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowRaffleModal(true)}
+                  className="btn-gold-outline"
+                >
+                  Add Raffle Entries
+                </button>
+              </div>
+            </div>
+          </section>
+
+          {/* About Section */}
+          <section className="mb-16">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl md:text-4xl font-bold text-gala-navy mb-6">About This Event</h2>
+              <p className="text-gray-700 text-lg mb-4">
+                The Youth Chorus of Kansas City's annual gala is our premier fundraising event,
+                bringing together supporters, families, and community members for an unforgettable
+                evening of celebration.
+              </p>
+              <p className="text-gray-700 text-lg mb-4">
+                Your support helps provide music education and performance opportunities to young
+                singers throughout the Kansas City area, regardless of their financial circumstances.
+              </p>
+              <p className="text-gray-600 elegant-text text-lg">
+                Location details will be sent to ticket holders closer to the event.
+              </p>
+            </div>
+          </section>
+        </div>
       </main>
 
       {/* Floating Cart */}
       {itemCount > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4">
+        <div className="fixed bottom-0 left-0 right-0 bg-white border-t shadow-lg p-4 z-40">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <CartSummary />
-            <Link to="/checkout" className="btn-primary">
-              Continue to Checkout
-            </Link>
+            <div className="flex items-center gap-4">
+              {hasTicketsInCart && !items.some(i => i.product.category === 'raffle') && (
+                <button
+                  onClick={() => setShowRaffleModal(true)}
+                  className="text-gala-gold hover:text-gala-goldDark font-medium"
+                >
+                  + Add Raffle Entries
+                </button>
+              )}
+              <Link to="/checkout" className="btn-gold">
+                Continue to Checkout
+              </Link>
+            </div>
           </div>
         </div>
       )}
 
+      {/* Raffle Modal */}
+      {showRaffleModal && products?.raffle && (
+        <RaffleModal
+          products={products.raffle}
+          onClose={() => setShowRaffleModal(false)}
+        />
+      )}
+
       {/* Footer */}
-      <footer className="bg-gray-100 py-8 mt-16">
-        <div className="max-w-6xl mx-auto px-4 text-center text-gray-600">
-          <p>Youth Chorus of Kansas City</p>
-          <p className="text-sm mt-2">Questions? Contact us at ryan@youthchoruskc.org</p>
+      <footer className="gala-bg py-12">
+        <div className="max-w-6xl mx-auto px-4 text-center">
+          <p className="text-gala-gold font-semibold text-lg mb-2">Youth Chorus of Kansas City</p>
+          <p className="text-white/60 text-sm">
+            Questions? Contact us at{' '}
+            <a href="mailto:ryan@youthchoruskc.org" className="text-gala-gold hover:underline">
+              ryan@youthchoruskc.org
+            </a>
+          </p>
         </div>
       </footer>
     </div>

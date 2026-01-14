@@ -13,33 +13,49 @@ export default function Success() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4">
+    <div className="min-h-screen gala-bg flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center">
-        <div className="text-6xl mb-6">🎉</div>
-        <h1 className="text-3xl font-bold text-green-700 mb-4">
+        {/* Gold starburst decoration */}
+        <div className="flex justify-center mb-6">
+          <img src="/starburst.png" alt="" className="w-24 h-24 object-contain" />
+        </div>
+
+        <h1 className="gala-title text-4xl gold-text mb-4">
           Thank You!
         </h1>
-        <p className="text-lg text-gray-600 mb-6">
+
+        <p className="text-white/80 text-lg mb-8">
           Your purchase was successful. We're so excited to see you at the YCKC Gala!
         </p>
 
-        <div className="card text-left mb-6">
-          <h2 className="font-semibold mb-2">What's Next?</h2>
-          <ul className="text-gray-600 space-y-2 text-sm">
-            <li>✓ You'll receive a confirmation email shortly</li>
-            <li>✓ We'll reach out to collect attendee names for your tickets</li>
-            <li>✓ Seating assignments will be sent closer to the event</li>
+        <div className="bg-gala-navyLight/50 backdrop-blur rounded-xl border border-gala-gold/20 p-6 text-left mb-8">
+          <h2 className="text-gala-gold font-semibold mb-3">What's Next?</h2>
+          <ul className="text-white/70 space-y-2 text-sm">
+            <li className="flex items-start gap-2">
+              <span className="text-gala-gold">★</span>
+              You'll receive a confirmation email shortly
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gala-gold">★</span>
+              We'll reach out to collect attendee names for your tickets
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="text-gala-gold">★</span>
+              Seating assignments will be sent closer to the event
+            </li>
           </ul>
         </div>
 
-        <div className="space-y-3">
-          <Link to="/" className="btn-primary inline-block">
-            Back to Home
-          </Link>
-          <p className="text-sm text-gray-500">
-            Questions? Contact us at ryan@youthchoruskc.org
-          </p>
-        </div>
+        <Link to="/" className="btn-gold inline-block mb-6">
+          Back to Home
+        </Link>
+
+        <p className="text-white/50 text-sm">
+          Questions? Contact us at{' '}
+          <a href="mailto:ryan@youthchoruskc.org" className="text-gala-gold hover:underline">
+            ryan@youthchoruskc.org
+          </a>
+        </p>
       </div>
     </div>
   )

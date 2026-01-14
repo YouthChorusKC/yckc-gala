@@ -205,3 +205,18 @@ export async function deleteTable(id: string): Promise<void> {
 export function getExportUrl(type: 'attendees' | 'orders' | 'raffle' | 'donors'): string {
   return `${API_BASE}/reports/export/${type}?password=${encodeURIComponent(getAdminPassword())}`
 }
+
+// Update product (admin only)
+export async function updateProduct(id: string, data: Partial<Product>): Promise<Product> {
+  const res = await adminFetch(`${API_BASE}/products/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  return res.json()
+}
+
+// Complete order manually (for test mode)
+export async function completeOrder(id: string): Promise<void> {
+  await adminFetch(`${API_BASE}/orders/${id}/complete`, { method: 'POST' })
+}
