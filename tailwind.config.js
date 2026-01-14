@@ -7,11 +7,12 @@ export default {
   theme: {
     extend: {
       colors: {
-        // YCKC brand colors - adjust as needed
+        // YCKC brand colors - matched from youthchoruskc.org
         yckc: {
-          primary: '#1e3a5f',    // Deep blue
-          secondary: '#c9a227',  // Gold
-          accent: '#2d5a87',     // Medium blue
+          primary: '#263c8a',    // YCKC blue (from website)
+          secondary: '#f5f5f5',  // Light gray background
+          accent: '#1e3070',     // Darker blue for hover
+          gold: '#c9a227',       // Gold accent
         },
       },
     },

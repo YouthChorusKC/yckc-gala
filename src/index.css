@@ -12,11 +12,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .btn-primary {
-  @apply bg-yckc-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-yckc-accent transition-colors;
+  @apply bg-yckc-primary text-white px-6 py-3 rounded-lg font-medium hover:bg-yckc-accent transition-colors shadow-sm;
 }
 
 .btn-secondary {
-  @apply bg-yckc-secondary text-yckc-primary px-6 py-3 rounded-lg font-medium hover:opacity-90 transition-opacity;
+  @apply bg-white text-yckc-primary border border-yckc-primary px-6 py-3 rounded-lg font-medium hover:bg-yckc-secondary transition-colors;
 }
 
 .card {

@@ -3,7 +3,7 @@ import cors from 'cors'
 import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { initDb } from './db.js'
+import { initDb, seedIfEmpty } from './db.js'
 import productsRouter from './routes/products.js'
 import checkoutRouter from './routes/checkout.js'
 import webhookRouter from './routes/webhook.js'
@@ -25,8 +25,9 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }))
 app.use(express.json())
 app.use(cors())
 
-// Initialize database
+// Initialize database and seed if empty
 initDb()
+seedIfEmpty()
 
 // API routes
 app.use('/api/products', productsRouter)
