@@ -27,7 +27,7 @@ export default function Cancel() {
         </div>
 
         <p className="mt-8 text-sm text-gray-500">
-          Having trouble? Contact us at info@yckckc.org
+          Having trouble? Contact us at ryan@youthchoruskc.org
         </p>
       </div>
     </div>

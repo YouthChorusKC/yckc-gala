@@ -37,7 +37,7 @@ export default function Success() {
             Back to Home
           </Link>
           <p className="text-sm text-gray-500">
-            Questions? Contact us at info@yckckc.org
+            Questions? Contact us at ryan@youthchoruskc.org
           </p>
         </div>
       </div>

@@ -92,7 +92,7 @@ export default function Home() {
       <footer className="bg-gray-100 py-8 mt-16">
         <div className="max-w-6xl mx-auto px-4 text-center text-gray-600">
           <p>Youth Chorus of Kansas City</p>
-          <p className="text-sm mt-2">Questions? Contact us at info@yckckc.org</p>
+          <p className="text-sm mt-2">Questions? Contact us at ryan@youthchoruskc.org</p>
         </div>
       </footer>
     </div>
