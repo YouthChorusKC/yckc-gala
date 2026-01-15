@@ -4,7 +4,7 @@ import cookieParser from 'cookie-parser'
 import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { initDb, seedIfEmpty } from './db.js'
+import { initDb, seedIfEmpty, ensureAdminUser } from './db.js'
 import productsRouter from './routes/products.js'
 import checkoutRouter from './routes/checkout.js'
 import webhookRouter from './routes/webhook.js'
@@ -36,6 +36,7 @@ app.use(cors({
 // Initialize database and seed if empty
 initDb()
 seedIfEmpty()
+ensureAdminUser().catch(err => console.error('Failed to ensure admin user:', err))
 
 // API routes
 app.use('/api/auth', authRouter)

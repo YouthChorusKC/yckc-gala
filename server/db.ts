@@ -192,6 +192,39 @@ export function generateId(): string {
   return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 }
 
+// Create or update admin user from environment variables
+export async function ensureAdminUser(): Promise<void> {
+  const adminEmail = process.env.ADMIN_EMAIL
+  const adminPassword = process.env.ADMIN_PASSWORD
+
+  if (!adminEmail || !adminPassword) {
+    console.log('No ADMIN_EMAIL/ADMIN_PASSWORD set, skipping admin user setup')
+    return
+  }
+
+  // Dynamic import bcrypt to avoid top-level await issues
+  const bcrypt = await import('bcrypt')
+  const database = getDb()
+
+  const existing = database.prepare('SELECT id FROM admin_users WHERE email = ?').get(adminEmail.toLowerCase()) as any
+
+  if (existing) {
+    // Update password
+    const passwordHash = await bcrypt.hash(adminPassword, 10)
+    database.prepare('UPDATE admin_users SET password_hash = ?, role = ?, must_change_password = 0 WHERE id = ?')
+      .run(passwordHash, 'edit', existing.id)
+    console.log(`Admin user ${adminEmail} password updated`)
+  } else {
+    // Create new admin user
+    const passwordHash = await bcrypt.hash(adminPassword, 10)
+    database.prepare(`
+      INSERT INTO admin_users (id, email, password_hash, role, must_change_password)
+      VALUES (?, ?, ?, 'edit', 0)
+    `).run(generateId(), adminEmail.toLowerCase(), passwordHash)
+    console.log(`Admin user ${adminEmail} created`)
+  }
+}
+
 // Seed products if database is empty
 export function seedIfEmpty(): void {
   const database = getDb()
