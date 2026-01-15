@@ -349,12 +349,12 @@ export default function Checkout() {
                       placeholder="Street address"
                       autoComplete="street-address"
                     />
-                    <div className="flex gap-2">
+                    <div className="grid grid-cols-6 gap-2">
                       <input
                         type="text"
                         value={city}
                         onChange={e => setCity(e.target.value)}
-                        className="flex-1 border rounded px-3 py-2"
+                        className="col-span-3 border rounded px-3 py-2"
                         placeholder="City"
                         autoComplete="address-level2"
                       />
@@ -362,7 +362,7 @@ export default function Checkout() {
                         type="text"
                         value={state}
                         onChange={e => setState(e.target.value)}
-                        className="w-28 border rounded px-3 py-2"
+                        className="col-span-1 border rounded px-2 py-2 text-sm"
                         placeholder="State"
                         autoComplete="address-level1"
                       />
@@ -370,7 +370,7 @@ export default function Checkout() {
                         type="text"
                         value={zip}
                         onChange={e => setZip(e.target.value)}
-                        className="w-24 border rounded px-3 py-2"
+                        className="col-span-2 border rounded px-2 py-2"
                         placeholder="ZIP"
                         autoComplete="postal-code"
                       />
