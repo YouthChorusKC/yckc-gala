@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getDb, generateId } from '../db.js'
-import { adminAuth } from '../middleware/auth.js'
+import { adminAuth, editAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -41,8 +41,8 @@ router.get('/:id', (req, res) => {
   res.json({ ...table, attendees })
 })
 
-// Create table
-router.post('/', (req, res) => {
+// Create table (edit role required)
+router.post('/', editAuth, (req, res) => {
   const db = getDb()
   const { name, capacity = 8, is_reserved = false, notes } = req.body
 
@@ -60,8 +60,8 @@ router.post('/', (req, res) => {
   res.json({ id, name, capacity, is_reserved, notes })
 })
 
-// Update table
-router.patch('/:id', (req, res) => {
+// Update table (edit role required)
+router.patch('/:id', editAuth, (req, res) => {
   const db = getDb()
   const { name, capacity, is_reserved, notes } = req.body
 
@@ -96,8 +96,8 @@ router.patch('/:id', (req, res) => {
   res.json({ success: true })
 })
 
-// Delete table (only if no attendees assigned)
-router.delete('/:id', (req, res) => {
+// Delete table (only if no attendees assigned, edit role required)
+router.delete('/:id', editAuth, (req, res) => {
   const db = getDb()
 
   const count = db.prepare('SELECT COUNT(*) as count FROM attendees WHERE table_id = ?').get(req.params.id) as any
@@ -111,8 +111,8 @@ router.delete('/:id', (req, res) => {
   res.json({ success: true })
 })
 
-// Bulk create tables
-router.post('/bulk', (req, res) => {
+// Bulk create tables (edit role required)
+router.post('/bulk', editAuth, (req, res) => {
   const db = getDb()
   const { count, prefix = 'Table', capacity = 8 } = req.body
 
@@ -152,8 +152,8 @@ router.get('/unassigned/attendees', (req, res) => {
   res.json(attendees)
 })
 
-// Bulk assign attendees to table
-router.post('/:id/assign', (req, res) => {
+// Bulk assign attendees to table (edit role required)
+router.post('/:id/assign', editAuth, (req, res) => {
   const db = getDb()
   const { attendeeIds } = req.body
   const tableId = req.params.id
@@ -185,8 +185,8 @@ router.post('/:id/assign', (req, res) => {
   res.json({ success: true, assigned: attendeeIds.length })
 })
 
-// Remove attendee from table
-router.post('/:id/unassign/:attendeeId', (req, res) => {
+// Remove attendee from table (edit role required)
+router.post('/:id/unassign/:attendeeId', editAuth, (req, res) => {
   const db = getDb()
 
   db.prepare('UPDATE attendees SET table_id = NULL WHERE id = ?').run(req.params.attendeeId)

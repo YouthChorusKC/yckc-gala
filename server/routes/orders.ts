@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getDb } from '../db.js'
-import { adminAuth } from '../middleware/auth.js'
+import { adminAuth, editAuth } from '../middleware/auth.js'
 import { sendPaymentReceived, sendPurchaseReceipt, sendAdminNotification } from '../services/email.js'
 
 const router = Router()
@@ -105,8 +105,8 @@ router.get('/:id', (req, res) => {
   })
 })
 
-// Update order notes
-router.patch('/:id', (req, res) => {
+// Update order notes (edit role required)
+router.patch('/:id', editAuth, (req, res) => {
   const db = getDb()
   const { notes } = req.body
 
@@ -115,8 +115,8 @@ router.patch('/:id', (req, res) => {
   res.json({ success: true })
 })
 
-// Cancel order
-router.post('/:id/cancel', (req, res) => {
+// Cancel order (edit role required)
+router.post('/:id/cancel', editAuth, (req, res) => {
   const db = getDb()
 
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(req.params.id) as any
@@ -134,10 +134,10 @@ router.post('/:id/cancel', (req, res) => {
   res.json({ success: true })
 })
 
-// Manually complete order (for test mode - simulates webhook)
-router.post('/:id/complete', (req, res) => {
+// Manually complete order (for test mode - simulates webhook, edit role required)
+router.post('/:id/complete', editAuth, (req, res) => {
   const db = getDb()
-  const orderId = req.params.id
+  const orderId = req.params.id as string
 
   const order = db.prepare('SELECT * FROM orders WHERE id = ?').get(orderId) as any
 

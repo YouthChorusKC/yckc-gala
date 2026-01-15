@@ -1,16 +1,8 @@
 import { Router } from 'express'
 import { getDb } from '../db.js'
+import { editAuth } from '../middleware/auth.js'
 
 const router = Router()
-
-// Simple admin auth middleware for product modifications
-function requireAdmin(req: any, res: any, next: any) {
-  const password = req.headers['x-admin-password']
-  if (password !== process.env.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Unauthorized' })
-  }
-  next()
-}
 
 // Get all active products grouped by category
 router.get('/', (req, res) => {
@@ -44,8 +36,8 @@ router.get('/:id', (req, res) => {
   res.json(product)
 })
 
-// Update product (admin only)
-router.patch('/:id', requireAdmin, (req, res) => {
+// Update product (edit role required)
+router.patch('/:id', editAuth, (req, res) => {
   const db = getDb()
   const { id } = req.params
   const { name, description, price_cents, quantity_available, is_active } = req.body

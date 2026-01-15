@@ -9,6 +9,7 @@ import AdminOrders from './pages/admin/Orders'
 import AdminAttendees from './pages/admin/Attendees'
 import AdminTables from './pages/admin/Tables'
 import AdminLogin from './pages/admin/Login'
+import AdminUsers from './pages/admin/Users'
 import ForgotPassword from './pages/admin/ForgotPassword'
 import ResetPassword from './pages/admin/ResetPassword'
 import { CartProvider } from './lib/cart'
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/admin/orders" element={<AdminOrders />} />
           <Route path="/admin/attendees" element={<AdminAttendees />} />
           <Route path="/admin/tables" element={<AdminTables />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
         </Routes>
       </div>
     </CartProvider>

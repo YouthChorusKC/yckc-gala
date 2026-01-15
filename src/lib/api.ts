@@ -22,7 +22,14 @@ export async function logout(): Promise<void> {
   })
 }
 
-export async function getCurrentUser(): Promise<{ user: { id: string; email: string } } | null> {
+export interface AdminUser {
+  id: string
+  email: string
+  role: 'edit' | 'view'
+  mustChangePassword: boolean
+}
+
+export async function getCurrentUser(): Promise<{ user: AdminUser } | null> {
   try {
     const res = await fetch(`${API_BASE}/auth/me`, {
       credentials: 'include',
@@ -324,4 +331,61 @@ export async function updateProduct(id: string, data: Partial<Product>): Promise
 // Complete order manually (for test mode)
 export async function completeOrder(id: string): Promise<void> {
   await adminFetch(`${API_BASE}/orders/${id}/complete`, { method: 'POST' })
+}
+
+// ============ USER MANAGEMENT ============
+
+export interface UserListItem {
+  id: string
+  email: string
+  role: 'edit' | 'view'
+  must_change_password: number
+  created_at: string
+  last_login: string | null
+}
+
+export async function getUsers(): Promise<UserListItem[]> {
+  const res = await adminFetch(`${API_BASE}/auth/users`)
+  return res.json()
+}
+
+export async function inviteUser(email: string, password: string, role: 'edit' | 'view'): Promise<void> {
+  await adminFetch(`${API_BASE}/auth/users/invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, role }),
+  })
+}
+
+export async function updateUserRole(id: string, role: 'edit' | 'view'): Promise<void> {
+  await adminFetch(`${API_BASE}/auth/users/${id}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
+  })
+}
+
+export async function deleteUser(id: string): Promise<void> {
+  await adminFetch(`${API_BASE}/auth/users/${id}`, { method: 'DELETE' })
+}
+
+export async function resetUserPassword(id: string, password: string): Promise<void> {
+  await adminFetch(`${API_BASE}/auth/users/${id}/reset-password`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/change-password`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || 'Failed to change password')
+  }
 }

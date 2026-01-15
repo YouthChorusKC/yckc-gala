@@ -122,6 +122,8 @@ export function initDb(): void {
       id TEXT PRIMARY KEY,
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT NOT NULL,
+      role TEXT DEFAULT 'view' CHECK (role IN ('edit', 'view')),
+      must_change_password INTEGER DEFAULT 0,
       reset_token TEXT,
       reset_token_expires TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -163,6 +165,9 @@ function runMigrations(database: Database.Database): void {
     { table: 'orders', column: 'payment_method', sql: "ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'card'" },
     { table: 'orders', column: 'customer_address', sql: "ALTER TABLE orders ADD COLUMN customer_address TEXT" },
     { table: 'orders', column: 'attendee_data', sql: "ALTER TABLE orders ADD COLUMN attendee_data TEXT" },
+    // Admin users table migrations
+    { table: 'admin_users', column: 'role', sql: "ALTER TABLE admin_users ADD COLUMN role TEXT DEFAULT 'edit'" },
+    { table: 'admin_users', column: 'must_change_password', sql: "ALTER TABLE admin_users ADD COLUMN must_change_password INTEGER DEFAULT 0" },
   ]
 
   for (const migration of migrations) {

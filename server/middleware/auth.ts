@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import { getDb } from '../db.js'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production'
 
@@ -15,35 +16,55 @@ declare global {
       user?: {
         id: string
         email: string
+        role: 'edit' | 'view'
+        mustChangePassword: boolean
       }
     }
   }
 }
 
+// Base auth - any authenticated admin user
 export function adminAuth(req: Request, res: Response, next: NextFunction) {
-  // Try JWT cookie auth first
   const token = req.cookies?.auth_token
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
-      req.user = {
-        id: decoded.userId,
-        email: decoded.email,
-      }
-      return next()
-    } catch (error) {
-      // Invalid token, clear cookie and continue to legacy auth check
+
+  if (!token) {
+    return res.status(401).json({ error: 'Unauthorized' })
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
+
+    // Fetch user from database to get current role
+    const db = getDb()
+    const user = db.prepare('SELECT id, email, role, must_change_password FROM admin_users WHERE id = ?')
+      .get(decoded.userId) as any
+
+    if (!user) {
       res.clearCookie('auth_token', { path: '/' })
+      return res.status(401).json({ error: 'User not found' })
     }
-  }
 
-  // Legacy: Check for password in header (for backward compatibility)
-  const adminPassword = process.env.ADMIN_PASSWORD || 'admin'
-  const password = req.headers['x-admin-password'] || req.query.password
+    req.user = {
+      id: user.id,
+      email: user.email,
+      role: user.role || 'view',
+      mustChangePassword: !!user.must_change_password,
+    }
 
-  if (password === adminPassword) {
     return next()
+  } catch (error) {
+    res.clearCookie('auth_token', { path: '/' })
+    return res.status(401).json({ error: 'Invalid token' })
   }
+}
 
-  return res.status(401).json({ error: 'Unauthorized' })
+// Edit auth - only users with 'edit' role
+export function editAuth(req: Request, res: Response, next: NextFunction) {
+  // First run adminAuth
+  adminAuth(req, res, () => {
+    if (req.user?.role !== 'edit') {
+      return res.status(403).json({ error: 'Edit permission required' })
+    }
+    next()
+  })
 }

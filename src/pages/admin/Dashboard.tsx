@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getSummary, setAdminPassword, getAdminPassword, getExportUrl, updateProduct, getCurrentUser, logout, type Summary, type Product } from '../../lib/api'
+import { getSummary, getExportUrl, updateProduct, getCurrentUser, logout, changePassword, type Summary, type Product, type AdminUser } from '../../lib/api'
 import { formatCents } from '../../lib/cart'
 
 interface EditingProduct {
@@ -14,11 +14,15 @@ export default function AdminDashboard() {
   const [summary, setSummary] = useState<Summary | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [password, setPassword] = useState(getAdminPassword())
-  const [needsAuth, setNeedsAuth] = useState(!getAdminPassword())
   const [editingProduct, setEditingProduct] = useState<EditingProduct | null>(null)
   const [saving, setSaving] = useState(false)
-  const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null)
+  const [currentUser, setCurrentUser] = useState<AdminUser | null>(null)
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [currentPw, setCurrentPw] = useState('')
+  const [newPw, setNewPw] = useState('')
+  const [confirmPw, setConfirmPw] = useState('')
+  const [pwError, setPwError] = useState('')
+  const [pwSaving, setPwSaving] = useState(false)
   const navigate = useNavigate()
 
   // Check for cookie auth on mount
@@ -26,21 +30,24 @@ export default function AdminDashboard() {
     getCurrentUser().then(result => {
       if (result?.user) {
         setCurrentUser(result.user)
-        setNeedsAuth(false)
+        if (result.user.mustChangePassword) {
+          setShowChangePassword(true)
+        }
+      } else {
+        navigate('/admin/login')
       }
     })
-  }, [])
+  }, [navigate])
 
   const loadSummary = async () => {
     try {
       setLoading(true)
       const data = await getSummary()
       setSummary(data)
-      setNeedsAuth(false)
       setError('')
     } catch (err: any) {
       if (err.message === 'Unauthorized') {
-        setNeedsAuth(true)
+        navigate('/admin/login')
       } else {
         setError(err.message)
       }
@@ -50,20 +57,18 @@ export default function AdminDashboard() {
   }
 
   useEffect(() => {
-    if (!needsAuth) {
+    if (currentUser && !currentUser.mustChangePassword) {
       loadSummary()
-    } else {
+    } else if (currentUser) {
       setLoading(false)
     }
-  }, [needsAuth])
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault()
-    setAdminPassword(password)
-    loadSummary()
-  }
+  }, [currentUser])
 
   const startEditing = (product: Product & { sold: number }) => {
+    if (currentUser?.role !== 'edit') {
+      alert('You need edit permissions to modify products')
+      return
+    }
     setEditingProduct({
       id: product.id,
       name: product.name,
@@ -93,31 +98,96 @@ export default function AdminDashboard() {
   const handleLogout = async () => {
     await logout()
     setCurrentUser(null)
-    localStorage.removeItem('adminPassword')
     navigate('/admin/login')
   }
 
-  if (needsAuth) {
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setPwError('')
+
+    if (newPw !== confirmPw) {
+      setPwError('Passwords do not match')
+      return
+    }
+    if (newPw.length < 8) {
+      setPwError('Password must be at least 8 characters')
+      return
+    }
+
+    setPwSaving(true)
+    try {
+      await changePassword(currentPw, newPw)
+      setShowChangePassword(false)
+      setCurrentPw('')
+      setNewPw('')
+      setConfirmPw('')
+      if (currentUser) {
+        setCurrentUser({ ...currentUser, mustChangePassword: false })
+      }
+      loadSummary()
+    } catch (err: any) {
+      setPwError(err.message)
+    } finally {
+      setPwSaving(false)
+    }
+  }
+
+  // Change password modal (required for new users)
+  if (showChangePassword) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
-        <form onSubmit={handleLogin} className="card max-w-sm w-full">
-          <h1 className="text-2xl font-bold mb-4">Admin Login</h1>
-          <input
-            type="password"
-            value={password}
-            onChange={e => setPassword(e.target.value)}
-            placeholder="Enter admin password"
-            className="w-full border rounded px-3 py-2 mb-4"
-            autoFocus
-          />
-          <button type="submit" className="w-full btn-primary">
-            Login
-          </button>
-          <div className="mt-4 text-center">
-            <Link to="/admin/login" className="text-sm text-gala-gold hover:underline">
-              Use email login
-            </Link>
+        <form onSubmit={handleChangePassword} className="card max-w-sm w-full">
+          <h1 className="text-2xl font-bold mb-2">Change Your Password</h1>
+          <p className="text-gray-600 text-sm mb-4">
+            Please set a new password to continue.
+          </p>
+
+          {pwError && (
+            <div className="bg-red-100 text-red-700 px-4 py-2 rounded mb-4">{pwError}</div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Current Password</label>
+              <input
+                type="password"
+                value={currentPw}
+                onChange={e => setCurrentPw(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+              <input
+                type="password"
+                value={newPw}
+                onChange={e => setNewPw(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+                minLength={8}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+              <input
+                type="password"
+                value={confirmPw}
+                onChange={e => setConfirmPw(e.target.value)}
+                className="w-full border rounded px-3 py-2"
+                minLength={8}
+                required
+              />
+            </div>
           </div>
+
+          <button
+            type="submit"
+            disabled={pwSaving}
+            className="w-full btn-primary mt-6"
+          >
+            {pwSaving ? 'Saving...' : 'Set New Password'}
+          </button>
         </form>
       </div>
     )
@@ -131,6 +201,8 @@ export default function AdminDashboard() {
     )
   }
 
+  const canEdit = currentUser?.role === 'edit'
+
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-yckc-primary text-white py-4">
@@ -138,7 +210,12 @@ export default function AdminDashboard() {
           <h1 className="text-2xl font-bold">YCKC Gala Admin</h1>
           <div className="flex items-center gap-4">
             {currentUser && (
-              <span className="text-white/70 text-sm">{currentUser.email}</span>
+              <span className="text-white/70 text-sm">
+                {currentUser.email}
+                {currentUser.role === 'view' && (
+                  <span className="ml-1 text-white/50">(view only)</span>
+                )}
+              </span>
             )}
             <Link to="/" className="text-white/80 hover:text-white">
               View Site
@@ -161,7 +238,7 @@ export default function AdminDashboard() {
         )}
 
         {/* Quick Links */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
           <Link to="/admin/orders" className="card hover:shadow-md transition-shadow">
             <h2 className="text-xl font-semibold mb-2">Orders</h2>
             <p className="text-gray-600">View and manage all orders</p>
@@ -181,6 +258,13 @@ export default function AdminDashboard() {
             <h2 className="text-xl font-semibold mb-2">Tables</h2>
             <p className="text-gray-600">Manage seating assignments</p>
           </Link>
+
+          {canEdit && (
+            <Link to="/admin/users" className="card hover:shadow-md transition-shadow">
+              <h2 className="text-xl font-semibold mb-2">Users</h2>
+              <p className="text-gray-600">Manage admin users</p>
+            </Link>
+          )}
         </div>
 
         {/* Revenue Breakdown */}
@@ -272,7 +356,7 @@ export default function AdminDashboard() {
         <div className="card mb-8">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold">Product Sales</h2>
-            <span className="text-sm text-gray-500">Click a row to edit</span>
+            {canEdit && <span className="text-sm text-gray-500">Click a row to edit</span>}
           </div>
           <table className="w-full">
             <thead>
@@ -282,15 +366,15 @@ export default function AdminDashboard() {
                 <th className="pb-2 text-right">Price</th>
                 <th className="pb-2 text-right">Sold</th>
                 <th className="pb-2 text-right">Available</th>
-                <th className="pb-2 text-right">Actions</th>
+                {canEdit && <th className="pb-2 text-right">Actions</th>}
               </tr>
             </thead>
             <tbody>
               {summary?.products.map(product => (
                 <tr
                   key={product.id}
-                  className="border-b last:border-0 hover:bg-gray-50 cursor-pointer"
-                  onClick={() => startEditing(product)}
+                  className={`border-b last:border-0 ${canEdit ? 'hover:bg-gray-50 cursor-pointer' : ''}`}
+                  onClick={() => canEdit && startEditing(product)}
                 >
                   <td className="py-2 font-medium">{product.name}</td>
                   <td className="py-2 text-gray-600 capitalize">{product.category}</td>
@@ -299,14 +383,16 @@ export default function AdminDashboard() {
                   <td className="py-2 text-right">
                     {product.quantity_available !== null ? product.quantity_available : '∞'}
                   </td>
-                  <td className="py-2 text-right">
-                    <button
-                      className="text-yckc-primary text-sm hover:underline"
-                      onClick={(e) => { e.stopPropagation(); startEditing(product); }}
-                    >
-                      Edit
-                    </button>
-                  </td>
+                  {canEdit && (
+                    <td className="py-2 text-right">
+                      <button
+                        className="text-yckc-primary text-sm hover:underline"
+                        onClick={(e) => { e.stopPropagation(); startEditing(product); }}
+                      >
+                        Edit
+                      </button>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { getDb, generateId } from '../db.js'
 import { sendCustomEmail } from '../services/email.js'
+import { adminAuth, editAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -64,6 +65,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         email: user.email,
+        role: user.role || 'view',
+        mustChangePassword: !!user.must_change_password,
       },
     })
   } catch (error) {
@@ -89,17 +92,57 @@ router.get('/me', (req, res) => {
   try {
     const decoded = jwt.verify(token, JWT_SECRET) as JwtPayload
     const db = getDb()
-    const user = db.prepare('SELECT id, email FROM admin_users WHERE id = ?').get(decoded.userId) as any
+    const user = db.prepare('SELECT id, email, role, must_change_password FROM admin_users WHERE id = ?')
+      .get(decoded.userId) as any
 
     if (!user) {
       res.clearCookie('auth_token', { path: '/' })
       return res.status(401).json({ error: 'User not found' })
     }
 
-    res.json({ user })
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role || 'view',
+        mustChangePassword: !!user.must_change_password,
+      },
+    })
   } catch (error) {
     res.clearCookie('auth_token', { path: '/' })
     res.status(401).json({ error: 'Invalid token' })
+  }
+})
+
+// Change own password
+router.post('/change-password', adminAuth, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current and new password are required' })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    const db = getDb()
+    const user = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(req.user!.id) as any
+
+    const validPassword = await bcrypt.compare(currentPassword, user.password_hash)
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Current password is incorrect' })
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS)
+    db.prepare('UPDATE admin_users SET password_hash = ?, must_change_password = 0 WHERE id = ?')
+      .run(passwordHash, req.user!.id)
+
+    res.json({ success: true, message: 'Password changed' })
+  } catch (error) {
+    console.error('Change password error:', error)
+    res.status(500).json({ error: 'Failed to change password' })
   }
 })
 
@@ -177,10 +220,10 @@ router.post('/reset', async (req, res) => {
     // Hash new password
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
 
-    // Update password and clear reset token
+    // Update password and clear reset token, also clear must_change_password
     db.prepare(`
       UPDATE admin_users
-      SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL
+      SET password_hash = ?, reset_token = NULL, reset_token_expires = NULL, must_change_password = 0
       WHERE id = ?
     `).run(passwordHash, user.id)
 
@@ -191,10 +234,24 @@ router.post('/reset', async (req, res) => {
   }
 })
 
-// Create admin user (only works if no admins exist)
-router.post('/setup', async (req, res) => {
+// ============ USER MANAGEMENT (edit role required) ============
+
+// List all admin users
+router.get('/users', adminAuth, (req, res) => {
+  const db = getDb()
+  const users = db.prepare(`
+    SELECT id, email, role, must_change_password, created_at, last_login
+    FROM admin_users
+    ORDER BY created_at ASC
+  `).all()
+
+  res.json(users)
+})
+
+// Invite new user (edit role required)
+router.post('/users/invite', editAuth, async (req, res) => {
   try {
-    const { email, password } = req.body
+    const { email, password, role } = req.body
 
     if (!email || !password) {
       return res.status(400).json({ error: 'Email and password are required' })
@@ -204,27 +261,135 @@ router.post('/setup', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters' })
     }
 
-    const db = getDb()
-
-    // Check if any admin exists
-    const existingAdmin = db.prepare('SELECT COUNT(*) as count FROM admin_users').get() as any
-    if (existingAdmin.count > 0) {
-      return res.status(403).json({ error: 'Admin user already exists' })
+    if (role && !['edit', 'view'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be edit or view' })
     }
 
-    // Create admin
+    const db = getDb()
+
+    // Check if email already exists
+    const existing = db.prepare('SELECT id FROM admin_users WHERE email = ?').get(email.toLowerCase())
+    if (existing) {
+      return res.status(400).json({ error: 'User with this email already exists' })
+    }
+
+    // Create user
     const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
     const userId = generateId()
 
     db.prepare(`
-      INSERT INTO admin_users (id, email, password_hash)
-      VALUES (?, ?, ?)
-    `).run(userId, email.toLowerCase(), passwordHash)
+      INSERT INTO admin_users (id, email, password_hash, role, must_change_password)
+      VALUES (?, ?, ?, ?, 1)
+    `).run(userId, email.toLowerCase(), passwordHash, role || 'view')
 
-    res.json({ success: true, message: 'Admin user created' })
+    res.json({
+      success: true,
+      user: {
+        id: userId,
+        email: email.toLowerCase(),
+        role: role || 'view',
+      },
+    })
   } catch (error) {
-    console.error('Setup error:', error)
-    res.status(500).json({ error: 'Failed to create admin user' })
+    console.error('Invite user error:', error)
+    res.status(500).json({ error: 'Failed to invite user' })
+  }
+})
+
+// Update user role (edit role required)
+router.patch('/users/:id', editAuth, (req, res) => {
+  try {
+    const { role } = req.body
+    const userId = req.params.id
+
+    if (role && !['edit', 'view'].includes(role)) {
+      return res.status(400).json({ error: 'Role must be edit or view' })
+    }
+
+    // Prevent user from changing their own role
+    if (userId === req.user!.id) {
+      return res.status(400).json({ error: 'Cannot change your own role' })
+    }
+
+    const db = getDb()
+
+    // Check user exists
+    const user = db.prepare('SELECT id FROM admin_users WHERE id = ?').get(userId)
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    if (role) {
+      db.prepare('UPDATE admin_users SET role = ? WHERE id = ?').run(role, userId)
+    }
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Update user error:', error)
+    res.status(500).json({ error: 'Failed to update user' })
+  }
+})
+
+// Delete user (edit role required)
+router.delete('/users/:id', editAuth, (req, res) => {
+  try {
+    const userId = req.params.id
+
+    // Prevent user from deleting themselves
+    if (userId === req.user!.id) {
+      return res.status(400).json({ error: 'Cannot delete yourself' })
+    }
+
+    const db = getDb()
+
+    // Check user exists
+    const user = db.prepare('SELECT id FROM admin_users WHERE id = ?').get(userId)
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    // Check there's at least one other edit user
+    const editCount = db.prepare("SELECT COUNT(*) as count FROM admin_users WHERE role = 'edit' AND id != ?")
+      .get(userId) as any
+    if (editCount.count === 0) {
+      return res.status(400).json({ error: 'Cannot delete the last user with edit permissions' })
+    }
+
+    db.prepare('DELETE FROM admin_users WHERE id = ?').run(userId)
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Delete user error:', error)
+    res.status(500).json({ error: 'Failed to delete user' })
+  }
+})
+
+// Reset user password (edit role required) - sets a new temp password
+router.post('/users/:id/reset-password', editAuth, async (req, res) => {
+  try {
+    const { password } = req.body
+    const userId = req.params.id
+
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' })
+    }
+
+    const db = getDb()
+
+    // Check user exists
+    const user = db.prepare('SELECT id FROM admin_users WHERE id = ?').get(userId)
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' })
+    }
+
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS)
+    db.prepare('UPDATE admin_users SET password_hash = ?, must_change_password = 1 WHERE id = ?')
+      .run(passwordHash, userId)
+
+    res.json({ success: true })
+  } catch (error) {
+    console.error('Reset user password error:', error)
+    res.status(500).json({ error: 'Failed to reset password' })
   }
 })
 

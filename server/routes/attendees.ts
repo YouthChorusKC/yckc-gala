@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { getDb } from '../db.js'
-import { adminAuth } from '../middleware/auth.js'
+import { adminAuth, editAuth } from '../middleware/auth.js'
 
 const router = Router()
 
@@ -44,8 +44,8 @@ router.get('/missing-names', (req, res) => {
   res.json(attendees)
 })
 
-// Update attendee
-router.patch('/:id', (req, res) => {
+// Update attendee (edit role required)
+router.patch('/:id', editAuth, (req, res) => {
   const db = getDb()
   const { name, email, dietary_restrictions, table_id } = req.body
 
@@ -80,8 +80,8 @@ router.patch('/:id', (req, res) => {
   res.json({ success: true })
 })
 
-// Check in attendee
-router.post('/:id/checkin', (req, res) => {
+// Check in attendee (edit role required)
+router.post('/:id/checkin', editAuth, (req, res) => {
   const db = getDb()
 
   db.prepare(`
@@ -93,8 +93,8 @@ router.post('/:id/checkin', (req, res) => {
   res.json({ success: true })
 })
 
-// Undo check in
-router.post('/:id/undo-checkin', (req, res) => {
+// Undo check in (edit role required)
+router.post('/:id/undo-checkin', editAuth, (req, res) => {
   const db = getDb()
 
   db.prepare(`
