@@ -50,10 +50,10 @@ export default function Checkout() {
   const [attendeesInitialized, setAttendeesInitialized] = useState(false)
 
   // Initialize attendees array when totalSeats changes or on first render
-  // Prefill first attendee with purchaser name for single ticket purchases
+  // Prefill first attendee with purchaser name
   const initializeAttendees = (purchaserName: string = '') => {
     const newAttendees = Array(totalSeats).fill(null).map((_, index) => ({
-      name: index === 0 && totalSeats === 1 ? purchaserName : '',
+      name: index === 0 ? purchaserName : '',
       dietary: ''
     }))
     setAttendees(newAttendees)
@@ -65,10 +65,10 @@ export default function Checkout() {
     initializeAttendees(name)
   }
 
-  // Update first attendee name when purchaser name changes (only for single ticket)
+  // Update first attendee name when purchaser name changes
   const handleNameChange = (newName: string) => {
     setName(newName)
-    if (totalSeats === 1 && attendees.length > 0 && collectNamesNow) {
+    if (attendees.length > 0 && collectNamesNow) {
       setAttendees(prev => {
         const updated = [...prev]
         updated[0] = { ...updated[0], name: newName }
