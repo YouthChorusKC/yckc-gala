@@ -170,12 +170,12 @@ export default function Home() {
               <p className="text-gray-600 elegant-text text-lg">Support YCKC and receive special recognition</p>
             </div>
             {/* Row 1: Platinum & Gold (centered) */}
-            <div className="flex justify-center gap-6 mb-6">
+            <div className="flex flex-col md:flex-row justify-center gap-6 mb-6">
               {products?.sponsorship
                 .filter(p => p.price_cents >= 150000)
                 .sort((a, b) => b.price_cents - a.price_cents)
                 .map(product => (
-                  <div key={product.id} className="w-full max-w-sm">
+                  <div key={product.id} className="w-full max-w-sm mx-auto md:mx-0">
                     <TicketCard product={product} featured />
                   </div>
                 ))}
