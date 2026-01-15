@@ -112,10 +112,18 @@ export default function Home() {
             the next generation of young singers.
           </p>
 
-          {/* CTA */}
-          <a href="#tickets" className="btn-gold text-lg px-10 py-4 inline-block">
-            Get Your Tickets
-          </a>
+          {/* CTAs */}
+          <div className="flex flex-wrap justify-center gap-4">
+            <a href="#tickets" className="btn-gold text-lg px-8 py-3 inline-block">
+              Get Your Tickets
+            </a>
+            <a href="#sponsorships" className="btn-gold-outline text-lg px-8 py-3 inline-block">
+              Sponsorships
+            </a>
+            <a href="#raffle" className="btn-gold-outline text-lg px-8 py-3 inline-block">
+              Golden Raffle
+            </a>
+          </div>
         </div>
 
         {/* Gradient fade to white */}
@@ -125,6 +133,22 @@ export default function Home() {
       {/* Main Content - Cream background */}
       <main className="bg-gala-cream">
         <div className="max-w-6xl mx-auto px-4 py-12">
+
+          {/* About Section */}
+          <section className="mb-16">
+            <div className="max-w-3xl mx-auto text-center">
+              <h2 className="text-3xl md:text-4xl font-bold text-gala-navy mb-6">About the Event</h2>
+              <p className="text-gray-700 text-lg mb-4">
+                The Youth Chorus of Kansas City's annual gala is our premier fundraising event,
+                bringing together supporters, families, and community members for an unforgettable
+                evening of celebration.
+              </p>
+              <p className="text-gray-700 text-lg">
+                Your support helps provide music education and performance opportunities to young
+                singers throughout the Kansas City area, regardless of their financial circumstances.
+              </p>
+            </div>
+          </section>
 
           {/* Tickets Section */}
           <section id="tickets" className="mb-16 scroll-mt-8">
@@ -140,25 +164,39 @@ export default function Home() {
           </section>
 
           {/* Sponsorship Section */}
-          <section className="mb-16">
+          <section id="sponsorships" className="mb-16 scroll-mt-8">
             <div className="text-center mb-8">
               <h2 className="text-3xl md:text-4xl font-bold text-gala-navy mb-2">Sponsorship Packages</h2>
               <p className="text-gray-600 elegant-text text-lg">Support YCKC and receive special recognition</p>
             </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {products?.sponsorship.map(product => (
-                <TicketCard
-                  key={product.id}
-                  product={product}
-                  featured={product.price_cents >= 150000}
-                />
-              ))}
+            {/* Row 1: Platinum & Gold (centered) */}
+            <div className="flex justify-center gap-6 mb-6">
+              {products?.sponsorship
+                .filter(p => p.price_cents >= 150000)
+                .sort((a, b) => b.price_cents - a.price_cents)
+                .map(product => (
+                  <div key={product.id} className="w-full max-w-sm">
+                    <TicketCard product={product} featured />
+                  </div>
+                ))}
+            </div>
+            {/* Row 2: Silver, Bronze, Friends */}
+            <div className="grid md:grid-cols-3 gap-6">
+              {products?.sponsorship
+                .filter(p => p.price_cents < 150000)
+                .sort((a, b) => b.price_cents - a.price_cents)
+                .map(product => (
+                  <TicketCard key={product.id} product={product} />
+                ))}
             </div>
           </section>
 
           {/* Golden Raffle Teaser */}
-          <section className="mb-16">
-            <div className="gala-bg rounded-2xl p-8 md:p-12 text-center relative overflow-hidden">
+          <section id="raffle" className="mb-16 scroll-mt-8">
+            <div
+              onClick={() => setShowRaffleModal(true)}
+              className="gala-bg rounded-2xl p-8 md:p-12 text-center relative overflow-hidden cursor-pointer hover:ring-2 hover:ring-gala-gold/50 transition-all"
+            >
               {/* Mini stars */}
               {stars.slice(0, 20).map(star => (
                 <div
@@ -181,45 +219,27 @@ export default function Home() {
                   Purchase raffle entries for a chance to win amazing prizes!
                   The more entries you have, the better your odds.
                 </p>
-                <div className="flex flex-wrap justify-center gap-4 mb-6">
-                  <div className="bg-gala-navyLight/50 backdrop-blur px-6 py-3 rounded-lg border border-gala-gold/30">
+                <div className="flex flex-wrap justify-center gap-6 mb-6">
+                  <div className="text-center">
                     <div className="text-gala-gold text-2xl font-bold">1 Entry</div>
-                    <div className="text-white/70">$25</div>
+                    <div className="text-white/60 text-sm">$25</div>
                   </div>
-                  <div className="bg-gala-navyLight/50 backdrop-blur px-6 py-3 rounded-lg border border-gala-gold/30">
+                  <div className="text-white/30">|</div>
+                  <div className="text-center">
                     <div className="text-gala-gold text-2xl font-bold">5 Entries</div>
-                    <div className="text-white/70">$100 <span className="text-green-400 text-sm">(Save $25)</span></div>
+                    <div className="text-white/60 text-sm">$100</div>
                   </div>
-                  <div className="bg-gala-gold/20 backdrop-blur px-6 py-3 rounded-lg border-2 border-gala-gold">
+                  <div className="text-white/30">|</div>
+                  <div className="text-center">
                     <div className="text-gala-gold text-2xl font-bold">12 Entries</div>
-                    <div className="text-white/70">$200 <span className="text-green-400 text-sm">(Best Value!)</span></div>
+                    <div className="text-white/60 text-sm">$200 <span className="text-green-400">(Best Value)</span></div>
                   </div>
                 </div>
-                <button
-                  onClick={() => setShowRaffleModal(true)}
-                  className="btn-gold-outline"
-                >
-                  Add Raffle Entries
-                </button>
+                <p className="text-gala-gold/80 text-sm">Click anywhere to add entries</p>
               </div>
             </div>
           </section>
 
-          {/* About Section */}
-          <section className="mb-16">
-            <div className="max-w-3xl mx-auto text-center">
-              <h2 className="text-3xl md:text-4xl font-bold text-gala-navy mb-6">About This Event</h2>
-              <p className="text-gray-700 text-lg mb-4">
-                The Youth Chorus of Kansas City's annual gala is our premier fundraising event,
-                bringing together supporters, families, and community members for an unforgettable
-                evening of celebration.
-              </p>
-              <p className="text-gray-700 text-lg">
-                Your support helps provide music education and performance opportunities to young
-                singers throughout the Kansas City area, regardless of their financial circumstances.
-              </p>
-            </div>
-          </section>
         </div>
       </main>
 

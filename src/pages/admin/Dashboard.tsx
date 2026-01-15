@@ -160,57 +160,27 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Stats Cards */}
-        <div className="grid md:grid-cols-4 gap-6 mb-8">
-          <div className="card">
-            <div className="text-sm text-gray-500 uppercase tracking-wide">Revenue</div>
-            <div className="text-3xl font-bold text-green-600">
-              {formatCents(summary?.revenue.total || 0)}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              {summary?.orders?.paid || 0} paid orders
-              {(summary?.orders?.pending || 0) + (summary?.orders?.pendingCheck || 0) > 0 && (
-                <span className="text-orange-500 ml-1">
-                  ({(summary?.orders?.pending || 0) + (summary?.orders?.pendingCheck || 0)} pending)
-                </span>
-              )}
-            </div>
-          </div>
+        {/* Quick Links */}
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          <Link to="/admin/orders" className="card hover:shadow-md transition-shadow">
+            <h2 className="text-xl font-semibold mb-2">Orders</h2>
+            <p className="text-gray-600">View and manage all orders</p>
+          </Link>
 
-          <div className="card">
-            <div className="text-sm text-gray-500 uppercase tracking-wide">Orders</div>
-            <div className="text-3xl font-bold text-yckc-secondary">
-              {summary?.orders?.total || 0}
-            </div>
-            <div className="text-sm text-gray-500 mt-1 space-y-0.5">
-              <div className="text-green-600">{summary?.orders?.paid || 0} paid</div>
-              {(summary?.orders?.pendingCheck || 0) > 0 && (
-                <div className="text-orange-500">{summary?.orders?.pendingCheck || 0} awaiting check</div>
-              )}
-            </div>
-          </div>
+          <Link to="/admin/attendees" className="card hover:shadow-md transition-shadow">
+            <h2 className="text-xl font-semibold mb-2">Attendees</h2>
+            <p className="text-gray-600">Manage names and seating</p>
+            {summary && summary.attendees.total - summary.attendees.namesCollected > 0 && (
+              <p className="text-orange-600 text-sm mt-2">
+                {summary.attendees.total - summary.attendees.namesCollected} missing names
+              </p>
+            )}
+          </Link>
 
-          <div className="card">
-            <div className="text-sm text-gray-500 uppercase tracking-wide">Attendees</div>
-            <div className="text-3xl font-bold text-yckc-primary">
-              {summary?.attendees.total || 0}
-            </div>
-            <div className="text-sm text-gray-500 mt-1">
-              {summary?.attendees.namesCollected || 0} names collected
-              {(summary?.attendees.total || 0) - (summary?.attendees.namesCollected || 0) > 0 && (
-                <span className="text-orange-500 ml-1">
-                  ({(summary?.attendees.total || 0) - (summary?.attendees.namesCollected || 0)} unnamed)
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="card">
-            <div className="text-sm text-gray-500 uppercase tracking-wide">Raffle Entries</div>
-            <div className="text-3xl font-bold text-purple-600">
-              {summary?.raffleEntries || 0}
-            </div>
-          </div>
+          <Link to="/admin/tables" className="card hover:shadow-md transition-shadow">
+            <h2 className="text-xl font-semibold mb-2">Tables</h2>
+            <p className="text-gray-600">Manage seating assignments</p>
+          </Link>
         </div>
 
         {/* Revenue Breakdown */}
@@ -245,27 +215,57 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        {/* Quick Links */}
-        <div className="grid md:grid-cols-3 gap-6 mb-8">
-          <Link to="/admin/orders" className="card hover:shadow-md transition-shadow">
-            <h2 className="text-xl font-semibold mb-2">Orders</h2>
-            <p className="text-gray-600">View and manage all orders</p>
-          </Link>
+        {/* Stats Cards */}
+        <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="card">
+            <div className="text-sm text-gray-500 uppercase tracking-wide">Revenue</div>
+            <div className="text-3xl font-bold text-green-600">
+              {formatCents(summary?.revenue.total || 0)}
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              {summary?.orders?.paid || 0} paid orders
+              {(summary?.orders?.pending || 0) + (summary?.orders?.pendingCheck || 0) > 0 && (
+                <span className="text-orange-500 ml-1">
+                  ({(summary?.orders?.pending || 0) + (summary?.orders?.pendingCheck || 0)} pending)
+                </span>
+              )}
+            </div>
+          </div>
 
-          <Link to="/admin/attendees" className="card hover:shadow-md transition-shadow">
-            <h2 className="text-xl font-semibold mb-2">Attendees</h2>
-            <p className="text-gray-600">Manage names and seating</p>
-            {summary && summary.attendees.total - summary.attendees.namesCollected > 0 && (
-              <p className="text-orange-600 text-sm mt-2">
-                {summary.attendees.total - summary.attendees.namesCollected} missing names
-              </p>
-            )}
-          </Link>
+          <div className="card">
+            <div className="text-sm text-gray-500 uppercase tracking-wide">Orders</div>
+            <div className="text-3xl font-bold text-gray-900">
+              {summary?.orders?.total || 0}
+            </div>
+            <div className="text-sm text-gray-500 mt-1 space-y-0.5">
+              <div className="text-green-600">{summary?.orders?.paid || 0} paid</div>
+              {(summary?.orders?.pendingCheck || 0) > 0 && (
+                <div className="text-orange-500">{summary?.orders?.pendingCheck || 0} awaiting check</div>
+              )}
+            </div>
+          </div>
 
-          <Link to="/admin/tables" className="card hover:shadow-md transition-shadow">
-            <h2 className="text-xl font-semibold mb-2">Tables</h2>
-            <p className="text-gray-600">Manage seating assignments</p>
-          </Link>
+          <div className="card">
+            <div className="text-sm text-gray-500 uppercase tracking-wide">Attendees</div>
+            <div className="text-3xl font-bold text-gray-900">
+              {summary?.attendees.total || 0}
+            </div>
+            <div className="text-sm text-gray-500 mt-1">
+              {summary?.attendees.namesCollected || 0} names collected
+              {(summary?.attendees.total || 0) - (summary?.attendees.namesCollected || 0) > 0 && (
+                <span className="text-orange-500 ml-1">
+                  ({(summary?.attendees.total || 0) - (summary?.attendees.namesCollected || 0)} unnamed)
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="text-sm text-gray-500 uppercase tracking-wide">Raffle Entries</div>
+            <div className="text-3xl font-bold text-gray-900">
+              {summary?.raffleEntries || 0}
+            </div>
+          </div>
         </div>
 
         {/* Product Sales - Editable */}

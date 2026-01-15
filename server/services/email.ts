@@ -92,12 +92,12 @@ function generateReceiptHtml(order: OrderDetails, isCheckPayment: boolean): stri
       </p>
       <p style="margin: 0; color: #856404; font-weight: bold;">
         Youth Chorus of Kansas City<br>
-        PO Box 414902<br>
-        Kansas City, MO 64141
+        PO Box 8703<br>
+        Kansas City, MO 64114
       </p>
       <p style="margin: 12px 0 0 0; color: #856404; font-size: 14px;">
         Make check payable to: Youth Chorus of Kansas City<br>
-        Reference: Order #${order.id.slice(0, 8).toUpperCase()}
+        Memo line: Gala - ${order.customer_name || 'Guest'}
       </p>
     </div>
   ` : ''

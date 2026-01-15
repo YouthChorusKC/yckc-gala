@@ -32,6 +32,15 @@ export default function Checkout() {
     }, 0)
   }, [items])
 
+  // Check for sponsorship + table combo (both include tables)
+  const hasSponsorshipWithTable = items.some(item =>
+    item.product.category === 'sponsorship' && (item.product.table_size || 0) > 0
+  )
+  const hasTableTicket = items.some(item =>
+    item.product.category === 'ticket' && item.product.name.toLowerCase().includes('table')
+  )
+  const showTableWarning = hasSponsorshipWithTable && hasTableTicket
+
   // Attendee name collection
   const [collectNamesNow, setCollectNamesNow] = useState(false)
   const [attendees, setAttendees] = useState<AttendeeInput[]>([])
@@ -69,7 +78,7 @@ export default function Checkout() {
         customerEmail: email,
         customerName: name || undefined,
         customerPhone: phone || undefined,
-        customerAddress: paymentMethod === 'check' ? address : undefined,
+        customerAddress: address || undefined,
         donationCents: donationCents || undefined,
         paymentMethod,
         attendees: collectNamesNow ? attendees.filter(a => a.name) : undefined,
@@ -152,6 +161,14 @@ export default function Checkout() {
                     <span>{formatCents(total)}</span>
                   </div>
                 </div>
+
+                {showTableWarning && (
+                  <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                    <p className="text-amber-800 text-sm">
+                      <strong>Note:</strong> Your cart includes both a sponsorship package (which includes a table) and a separate table purchase. This is fine if you want multiple tables, but please confirm this is what you intended.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Attendee Names */}
@@ -261,10 +278,11 @@ export default function Checkout() {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Name
+                      Name *
                     </label>
                     <input
                       type="text"
+                      required
                       value={name}
                       onChange={e => setName(e.target.value)}
                       className="w-full border rounded px-3 py-2"
@@ -283,6 +301,22 @@ export default function Checkout() {
                       className="w-full border rounded px-3 py-2"
                       placeholder="(555) 555-5555"
                     />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Mailing Address
+                    </label>
+                    <textarea
+                      value={address}
+                      onChange={e => setAddress(e.target.value)}
+                      className="w-full border rounded px-3 py-2 text-sm"
+                      rows={2}
+                      placeholder="Street address, City, State ZIP"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      For thank-you correspondence
+                    </p>
                   </div>
                 </div>
               </div>
@@ -323,19 +357,14 @@ export default function Checkout() {
 
                 {paymentMethod === 'check' && (
                   <div className="mt-4 p-4 bg-gala-cream rounded-lg">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Your Mailing Address *
-                    </label>
-                    <textarea
-                      required
-                      value={address}
-                      onChange={e => setAddress(e.target.value)}
-                      className="w-full border rounded px-3 py-2 text-sm"
-                      rows={3}
-                      placeholder="Street address&#10;City, State ZIP"
-                    />
-                    <p className="text-xs text-gray-500 mt-2">
-                      For our records and thank-you correspondence
+                    <p className="text-sm font-medium text-gray-700 mb-2">Mail your check to:</p>
+                    <div className="text-sm text-gray-800 mb-3">
+                      <p className="font-semibold">Youth Chorus of Kansas City</p>
+                      <p>PO Box 8703</p>
+                      <p>Kansas City, MO 64114</p>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Make check payable to "Youth Chorus of Kansas City"
                     </p>
                   </div>
                 )}

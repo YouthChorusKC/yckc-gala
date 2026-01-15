@@ -130,13 +130,13 @@ export default function CheckConfirmation() {
             <div>
               <p className="text-white/50 text-sm mb-1">Mail to:</p>
               <p>Youth Chorus of Kansas City</p>
-              <p>P.O. Box 413012</p>
-              <p>Kansas City, MO 64141</p>
+              <p>PO Box 8703</p>
+              <p>Kansas City, MO 64114</p>
             </div>
 
             <div>
               <p className="text-white/50 text-sm mb-1">Please write on memo line:</p>
-              <p className="font-mono text-gala-gold">Gala - {order.id.substring(0, 8).toUpperCase()}</p>
+              <p className="font-mono text-gala-gold">Gala - {order.customerName || 'Guest'}</p>
             </div>
           </div>
         </div>

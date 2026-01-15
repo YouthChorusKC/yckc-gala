@@ -30,8 +30,14 @@ export default function RaffleModal({ products, onClose }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-      <div className="bg-gala-navy rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl">
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-gala-navy rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Header */}
         <div className="p-6 text-center border-b border-gala-gold/20">
           <h2 className="text-2xl md:text-3xl font-bold gold-text mb-2">Golden Raffle</h2>
