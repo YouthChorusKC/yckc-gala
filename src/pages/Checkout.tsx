@@ -15,7 +15,10 @@ export default function Checkout() {
   const [email, setEmail] = useState('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [address, setAddress] = useState('')
+  const [street, setStreet] = useState('')
+  const [city, setCity] = useState('')
+  const [state, setState] = useState('')
+  const [zip, setZip] = useState('')
   const [donation, setDonation] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'check'>('card')
   const [loading, setLoading] = useState(false)
@@ -41,15 +44,43 @@ export default function Checkout() {
   )
   const showTableWarning = hasSponsorshipWithTable && hasTableTicket
 
-  // Attendee name collection
-  const [collectNamesNow, setCollectNamesNow] = useState(false)
+  // Attendee name collection - default to collecting names now
+  const [collectNamesNow, setCollectNamesNow] = useState(true)
   const [attendees, setAttendees] = useState<AttendeeInput[]>([])
+  const [attendeesInitialized, setAttendeesInitialized] = useState(false)
 
-  // Initialize attendees array when collectNamesNow changes
+  // Initialize attendees array when totalSeats changes or on first render
+  // Prefill first attendee with purchaser name for single ticket purchases
+  const initializeAttendees = (purchaserName: string = '') => {
+    const newAttendees = Array(totalSeats).fill(null).map((_, index) => ({
+      name: index === 0 && totalSeats === 1 ? purchaserName : '',
+      dietary: ''
+    }))
+    setAttendees(newAttendees)
+    setAttendeesInitialized(true)
+  }
+
+  // Initialize on mount or when totalSeats changes
+  if (totalSeats > 0 && !attendeesInitialized) {
+    initializeAttendees(name)
+  }
+
+  // Update first attendee name when purchaser name changes (only for single ticket)
+  const handleNameChange = (newName: string) => {
+    setName(newName)
+    if (totalSeats === 1 && attendees.length > 0 && collectNamesNow) {
+      setAttendees(prev => {
+        const updated = [...prev]
+        updated[0] = { ...updated[0], name: newName }
+        return updated
+      })
+    }
+  }
+
   const handleCollectNamesChange = (collect: boolean) => {
     setCollectNamesNow(collect)
     if (collect && attendees.length !== totalSeats) {
-      setAttendees(Array(totalSeats).fill(null).map(() => ({ name: '', dietary: '' })))
+      initializeAttendees(name)
     }
   }
 
@@ -69,6 +100,9 @@ export default function Checkout() {
     setError('')
     setLoading(true)
 
+    // Combine address fields
+    const fullAddress = [street, city, state, zip].filter(Boolean).join(', ')
+
     try {
       const result = await createCheckout({
         items: items.map(item => ({
@@ -78,7 +112,7 @@ export default function Checkout() {
         customerEmail: email,
         customerName: name || undefined,
         customerPhone: phone || undefined,
-        customerAddress: address || undefined,
+        customerAddress: fullAddress || undefined,
         donationCents: donationCents || undefined,
         paymentMethod,
         attendees: collectNamesNow ? attendees.filter(a => a.name) : undefined,
@@ -284,7 +318,7 @@ export default function Checkout() {
                       type="text"
                       required
                       value={name}
-                      onChange={e => setName(e.target.value)}
+                      onChange={e => handleNameChange(e.target.value)}
                       className="w-full border rounded px-3 py-2"
                       placeholder="Your name"
                     />
@@ -307,13 +341,38 @@ export default function Checkout() {
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Mailing Address
                     </label>
-                    <textarea
-                      value={address}
-                      onChange={e => setAddress(e.target.value)}
-                      className="w-full border rounded px-3 py-2 text-sm"
-                      rows={2}
-                      placeholder="Street address, City, State ZIP"
+                    <input
+                      type="text"
+                      value={street}
+                      onChange={e => setStreet(e.target.value)}
+                      className="w-full border rounded px-3 py-2 mb-2"
+                      placeholder="Street address"
                     />
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={city}
+                        onChange={e => setCity(e.target.value)}
+                        className="flex-1 border rounded px-3 py-2"
+                        placeholder="City"
+                      />
+                      <input
+                        type="text"
+                        value={state}
+                        onChange={e => setState(e.target.value)}
+                        className="w-16 border rounded px-3 py-2"
+                        placeholder="ST"
+                        maxLength={2}
+                      />
+                      <input
+                        type="text"
+                        value={zip}
+                        onChange={e => setZip(e.target.value)}
+                        className="w-24 border rounded px-3 py-2"
+                        placeholder="ZIP"
+                        maxLength={10}
+                      />
+                    </div>
                     <p className="text-xs text-gray-500 mt-1">
                       For thank-you correspondence
                     </p>
