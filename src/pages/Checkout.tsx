@@ -347,6 +347,7 @@ export default function Checkout() {
                       onChange={e => setStreet(e.target.value)}
                       className="w-full border rounded px-3 py-2 mb-2"
                       placeholder="Street address"
+                      autoComplete="street-address"
                     />
                     <div className="flex gap-2">
                       <input
@@ -355,14 +356,15 @@ export default function Checkout() {
                         onChange={e => setCity(e.target.value)}
                         className="flex-1 border rounded px-3 py-2"
                         placeholder="City"
+                        autoComplete="address-level2"
                       />
                       <input
                         type="text"
                         value={state}
                         onChange={e => setState(e.target.value)}
-                        className="w-16 border rounded px-3 py-2"
-                        placeholder="ST"
-                        maxLength={2}
+                        className="w-28 border rounded px-3 py-2"
+                        placeholder="State"
+                        autoComplete="address-level1"
                       />
                       <input
                         type="text"
@@ -370,7 +372,7 @@ export default function Checkout() {
                         onChange={e => setZip(e.target.value)}
                         className="w-24 border rounded px-3 py-2"
                         placeholder="ZIP"
-                        maxLength={10}
+                        autoComplete="postal-code"
                       />
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
