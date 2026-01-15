@@ -143,8 +143,8 @@ export default function Checkout() {
   }
 
   return (
-    <div className="min-h-screen bg-gala-cream py-12">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className="min-h-screen bg-gala-cream py-12 overflow-x-hidden">
+      <div className="max-w-4xl mx-auto px-4 overflow-x-hidden">
         <Link to="/" className="text-gala-navy hover:text-gala-gold mb-6 inline-block">
           &larr; Back to tickets
         </Link>
@@ -160,12 +160,17 @@ export default function Checkout() {
                 <h2 className="text-xl font-semibold text-gala-navy mb-4">Your Order</h2>
 
                 {items.map(item => (
-                  <div key={item.product.id} className="flex items-center justify-between py-4 border-b last:border-0">
-                    <div className="flex-1">
-                      <h3 className="font-medium text-gala-navy">{item.product.name}</h3>
-                      <p className="text-sm text-gray-500">{formatCents(item.product.price_cents)} each</p>
+                  <div key={item.product.id} className="py-4 border-b last:border-0">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-medium text-gala-navy">{item.product.name}</h3>
+                        <p className="text-sm text-gray-500">{formatCents(item.product.price_cents)} each</p>
+                      </div>
+                      <span className="font-medium text-gala-navy whitespace-nowrap">
+                        {formatCents(item.product.price_cents * item.quantity)}
+                      </span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 mt-2">
                       <select
                         value={item.quantity}
                         onChange={e => updateQuantity(item.product.id, parseInt(e.target.value))}
@@ -175,9 +180,6 @@ export default function Checkout() {
                           <option key={i + 1} value={i + 1}>{i + 1}</option>
                         ))}
                       </select>
-                      <span className="w-24 text-right font-medium text-gala-navy">
-                        {formatCents(item.product.price_cents * item.quantity)}
-                      </span>
                       <button
                         type="button"
                         onClick={() => removeItem(item.product.id)}
@@ -213,7 +215,7 @@ export default function Checkout() {
                     You have {totalSeats} seat{totalSeats > 1 ? 's' : ''} to fill
                   </p>
 
-                  <div className="flex gap-4 mb-4">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 mb-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="radio"
@@ -239,21 +241,21 @@ export default function Checkout() {
                   {collectNamesNow && (
                     <div className="space-y-3 max-h-80 overflow-y-auto">
                       {attendees.map((attendee, index) => (
-                        <div key={index} className="flex gap-3 items-center">
+                        <div key={index} className="flex flex-col sm:flex-row gap-2 sm:gap-3 sm:items-center">
                           <span className="text-sm text-gray-500 w-8">{index + 1}.</span>
                           <input
                             type="text"
                             placeholder="Name"
                             value={attendee.name}
                             onChange={e => updateAttendee(index, 'name', e.target.value)}
-                            className="flex-1 border rounded px-3 py-2 text-sm"
+                            className="flex-1 border rounded px-3 py-2 text-sm min-w-0"
                           />
                           <input
                             type="text"
                             placeholder="Dietary needs"
                             value={attendee.dietary}
                             onChange={e => updateAttendee(index, 'dietary', e.target.value)}
-                            className="w-40 border rounded px-3 py-2 text-sm"
+                            className="sm:w-36 border rounded px-3 py-2 text-sm"
                           />
                         </div>
                       ))}
