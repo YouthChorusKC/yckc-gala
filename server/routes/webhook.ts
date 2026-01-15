@@ -1,6 +1,7 @@
 import { Router, Request, Response } from 'express'
 import Stripe from 'stripe'
 import { getDb, generateId } from '../db.js'
+import { sendPurchaseReceipt, sendAdminNotification } from '../services/email.js'
 
 const router = Router()
 
@@ -75,19 +76,32 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
       .run(item.quantity, item.product_id)
   }
 
+  // Parse attendee data from order if available
+  let attendeeData: Array<{ name?: string; dietary?: string }> = []
+  if (order.attendee_data) {
+    try {
+      attendeeData = JSON.parse(order.attendee_data)
+    } catch (e) {
+      console.error('Failed to parse attendee_data:', e)
+    }
+  }
+
   // Create attendee records for ticket/sponsorship purchases
   let attendeeCount = 0
+  let attendeeDataIndex = 0
   for (const item of orderItems) {
     if (item.category === 'ticket' || item.category === 'sponsorship') {
       const seatsPerUnit = item.table_size || 1
       const totalSeats = item.quantity * seatsPerUnit
 
       for (let i = 0; i < totalSeats; i++) {
+        const prefilledData = attendeeData[attendeeDataIndex] || {}
         db.prepare(`
-          INSERT INTO attendees (id, order_id, created_at)
-          VALUES (?, ?, CURRENT_TIMESTAMP)
-        `).run(generateId(), orderId)
+          INSERT INTO attendees (id, order_id, name, dietary_restrictions, created_at)
+          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).run(generateId(), orderId, prefilledData.name || null, prefilledData.dietary || null)
         attendeeCount++
+        attendeeDataIndex++
       }
     }
   }
@@ -135,6 +149,26 @@ async function handleSuccessfulPayment(session: Stripe.Checkout.Session) {
   }
 
   console.log(`Order ${orderId} completed: ${attendeeCount} attendees, ${nextEntry - raffleEntryNumber.next} raffle entries`)
+
+  // Send receipt email
+  const orderForEmail = {
+    id: orderId,
+    customer_email: order.customer_email,
+    customer_name: order.customer_name,
+    customer_phone: order.customer_phone,
+    total_cents: order.total_cents,
+    donation_cents: order.donation_cents || 0,
+    payment_method: 'card' as const,
+    items: orderItems.map((item: any) => ({
+      product_name: item.product_name,
+      quantity: item.quantity,
+      unit_price_cents: item.unit_price_cents,
+      category: item.category,
+    })),
+  }
+
+  sendPurchaseReceipt(orderForEmail).catch(err => console.error('Failed to send receipt:', err))
+  sendAdminNotification(orderForEmail).catch(err => console.error('Failed to send admin notification:', err))
 }
 
 export default router

@@ -10,23 +10,43 @@ router.use(adminAuth)
 router.get('/summary', (req, res) => {
   const db = getDb()
 
-  const orders = db.prepare(`
+  // Order counts by status
+  const orderStats = db.prepare(`
     SELECT
       COUNT(*) as total_orders,
       SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_orders,
+      SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_orders,
+      SUM(CASE WHEN status = 'pending_check' THEN 1 ELSE 0 END) as pending_check_orders,
       SUM(CASE WHEN status = 'paid' THEN total_cents ELSE 0 END) as total_revenue,
       SUM(CASE WHEN status = 'paid' THEN donation_cents ELSE 0 END) as total_donations
     FROM orders
   `).get() as any
 
+  // Revenue breakdown by category
+  const categoryRevenue = db.prepare(`
+    SELECT
+      p.category,
+      SUM(CASE WHEN o.status = 'paid' THEN oi.total_cents ELSE 0 END) as revenue
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
+    JOIN orders o ON oi.order_id = o.id
+    GROUP BY p.category
+  `).all() as any[]
+
+  const revenueByCategory: Record<string, number> = {}
+  for (const row of categoryRevenue) {
+    revenueByCategory[row.category] = row.revenue || 0
+  }
+
   const attendees = db.prepare(`
     SELECT
       COUNT(*) as total_attendees,
       SUM(CASE WHEN name IS NOT NULL AND name != '' THEN 1 ELSE 0 END) as names_collected,
-      SUM(CASE WHEN checked_in = 1 THEN 1 ELSE 0 END) as checked_in
+      SUM(CASE WHEN checked_in = 1 THEN 1 ELSE 0 END) as checked_in,
+      SUM(CASE WHEN table_id IS NOT NULL THEN 1 ELSE 0 END) as assigned_to_table
     FROM attendees a
     JOIN orders o ON a.order_id = o.id
-    WHERE o.status = 'paid'
+    WHERE o.status IN ('paid', 'pending_check')
   `).get() as any
 
   const raffles = db.prepare(`
@@ -38,7 +58,7 @@ router.get('/summary', (req, res) => {
 
   const products = db.prepare(`
     SELECT
-      p.id, p.name, p.category, p.price_cents,
+      p.id, p.name, p.category, p.price_cents, p.description,
       p.quantity_available, p.quantity_sold,
       SUM(CASE WHEN o.status = 'paid' THEN oi.quantity ELSE 0 END) as sold
     FROM products p
@@ -50,15 +70,28 @@ router.get('/summary', (req, res) => {
   `).all()
 
   res.json({
+    orders: {
+      total: orderStats.total_orders || 0,
+      paid: orderStats.paid_orders || 0,
+      pending: orderStats.pending_orders || 0,
+      pendingCheck: orderStats.pending_check_orders || 0,
+    },
     revenue: {
-      total: orders.total_revenue || 0,
-      donations: orders.total_donations || 0,
-      orderCount: orders.paid_orders || 0,
+      total: orderStats.total_revenue || 0,
+      donations: orderStats.total_donations || 0,
+      orderCount: orderStats.paid_orders || 0,
+      byCategory: {
+        ticket: revenueByCategory['ticket'] || 0,
+        sponsorship: revenueByCategory['sponsorship'] || 0,
+        raffle: revenueByCategory['raffle'] || 0,
+        donation: orderStats.total_donations || 0,
+      },
     },
     attendees: {
       total: attendees.total_attendees || 0,
       namesCollected: attendees.names_collected || 0,
       checkedIn: attendees.checked_in || 0,
+      assigned: attendees.assigned_to_table || 0,
     },
     raffleEntries: raffles.total_entries || 0,
     products,

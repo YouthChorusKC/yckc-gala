@@ -1,10 +1,43 @@
 import { Router } from 'express'
 import { getDb } from '../db.js'
 import { adminAuth } from '../middleware/auth.js'
+import { sendPaymentReceived, sendPurchaseReceipt, sendAdminNotification } from '../services/email.js'
 
 const router = Router()
 
-// Apply admin auth to all routes
+// PUBLIC: Get order summary for check confirmation page
+router.get('/public/:id', (req, res) => {
+  const db = getDb()
+
+  const order = db.prepare(`
+    SELECT id, customer_email, customer_name, total_cents, status, payment_method, created_at
+    FROM orders WHERE id = ?
+  `).get(req.params.id) as any
+
+  if (!order) {
+    return res.status(404).json({ error: 'Order not found' })
+  }
+
+  const items = db.prepare(`
+    SELECT p.name as product_name, oi.quantity, oi.total_cents
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
+    WHERE oi.order_id = ?
+  `).all(req.params.id)
+
+  res.json({
+    id: order.id,
+    customerName: order.customer_name,
+    customerEmail: order.customer_email,
+    totalCents: order.total_cents,
+    status: order.status,
+    paymentMethod: order.payment_method,
+    createdAt: order.created_at,
+    items,
+  })
+})
+
+// Apply admin auth to all routes below
 router.use(adminAuth)
 
 // Get all orders
@@ -141,18 +174,31 @@ router.post('/:id/complete', (req, res) => {
   // Create attendee records for ticket/sponsorship purchases
   const generateId = () => Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
 
+  // Parse attendee data from order if available
+  let attendeeData: Array<{ name?: string; dietary?: string }> = []
+  if (order.attendee_data) {
+    try {
+      attendeeData = JSON.parse(order.attendee_data)
+    } catch (e) {
+      console.error('Failed to parse attendee_data:', e)
+    }
+  }
+
   let attendeeCount = 0
+  let attendeeDataIndex = 0
   for (const item of orderItems) {
     if (item.category === 'ticket' || item.category === 'sponsorship') {
       const seatsPerUnit = item.table_size || 1
       const totalSeats = item.quantity * seatsPerUnit
 
       for (let i = 0; i < totalSeats; i++) {
+        const prefilledData = attendeeData[attendeeDataIndex] || {}
         db.prepare(`
-          INSERT INTO attendees (id, order_id, created_at)
-          VALUES (?, ?, CURRENT_TIMESTAMP)
-        `).run(generateId(), orderId)
+          INSERT INTO attendees (id, order_id, name, dietary_restrictions, created_at)
+          VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+        `).run(generateId(), orderId, prefilledData.name || null, prefilledData.dietary || null)
         attendeeCount++
+        attendeeDataIndex++
       }
     }
   }
@@ -198,6 +244,32 @@ router.post('/:id/complete', (req, res) => {
   }
 
   console.log(`Order ${orderId} manually completed: ${attendeeCount} attendees, ${nextEntry - raffleEntryNumber.next} raffle entries`)
+
+  // Send emails
+  const orderForEmail = {
+    id: orderId,
+    customer_email: order.customer_email,
+    customer_name: order.customer_name,
+    customer_phone: order.customer_phone,
+    total_cents: order.total_cents,
+    donation_cents: order.donation_cents || 0,
+    payment_method: (order.payment_method || 'card') as 'card' | 'check',
+    items: orderItems.map((item: any) => ({
+      product_name: item.product_name,
+      quantity: item.quantity,
+      unit_price_cents: item.unit_price_cents,
+      category: item.category,
+    })),
+  }
+
+  // For check orders (pending_check), send payment received confirmation
+  if (order.status === 'pending_check') {
+    sendPaymentReceived(orderForEmail).catch(err => console.error('Failed to send payment received:', err))
+  } else {
+    // For card orders marked manually, send the receipt
+    sendPurchaseReceipt(orderForEmail).catch(err => console.error('Failed to send receipt:', err))
+    sendAdminNotification(orderForEmail).catch(err => console.error('Failed to send admin notification:', err))
+  }
 
   res.json({ success: true, attendeeCount, raffleEntries: nextEntry - raffleEntryNumber.next })
 })

@@ -81,7 +81,7 @@ export default function Home() {
             <img
               src="/starburst.png"
               alt=""
-              className="w-32 h-32 md:w-40 md:h-40 object-contain"
+              className="w-40 h-40 md:w-52 md:h-52 object-contain"
             />
           </div>
 
@@ -99,9 +99,13 @@ export default function Home() {
           </p>
 
           {/* Event details */}
-          <div className="inline-block bg-gala-gold text-gala-navy px-8 py-3 rounded-full font-semibold text-lg mb-8">
-            Thursday, April 9, 2026
+          <div className="inline-block bg-gala-gold text-gala-navy px-8 py-3 rounded-full font-semibold text-lg mb-4">
+            Thursday, April 9, 2026 • 6:30–8:30pm
           </div>
+
+          <p className="text-white/70 text-base mb-8">
+            The Abbott • 1901 Cherry St, Kansas City
+          </p>
 
           <p className="text-white/80 text-lg max-w-2xl mx-auto mb-10">
             Join us for an elegant evening of music, celebration, and community as we support
@@ -210,12 +214,9 @@ export default function Home() {
                 bringing together supporters, families, and community members for an unforgettable
                 evening of celebration.
               </p>
-              <p className="text-gray-700 text-lg mb-4">
+              <p className="text-gray-700 text-lg">
                 Your support helps provide music education and performance opportunities to young
                 singers throughout the Kansas City area, regardless of their financial circumstances.
-              </p>
-              <p className="text-gray-600 elegant-text text-lg">
-                Location details will be sent to ticket holders closer to the event.
               </p>
             </div>
           </section>

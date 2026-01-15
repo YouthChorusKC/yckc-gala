@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import Stripe from 'stripe'
 import { getDb, generateId } from '../db.js'
+import { sendPurchaseReceipt, sendAdminNotification } from '../services/email.js'
 
 const router = Router()
 
@@ -20,17 +21,34 @@ interface CartItem {
   quantity: number
 }
 
+interface AttendeeInput {
+  name?: string
+  dietary?: string
+}
+
 interface CheckoutRequest {
   items: CartItem[]
   customerEmail: string
   customerName?: string
   customerPhone?: string
+  customerAddress?: string
   donationCents?: number
+  paymentMethod?: 'card' | 'check'
+  attendees?: AttendeeInput[]
 }
 
 router.post('/', async (req, res) => {
   try {
-    const { items, customerEmail, customerName, customerPhone, donationCents = 0 }: CheckoutRequest = req.body
+    const {
+      items,
+      customerEmail,
+      customerName,
+      customerPhone,
+      customerAddress,
+      donationCents = 0,
+      paymentMethod = 'card',
+      attendees
+    }: CheckoutRequest = req.body
 
     if (!items || items.length === 0) {
       return res.status(400).json({ error: 'Cart is empty' })
@@ -40,9 +58,14 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Email is required' })
     }
 
+    // Require address for check payments
+    if (paymentMethod === 'check' && !customerAddress) {
+      return res.status(400).json({ error: 'Mailing address is required for check payments' })
+    }
+
     const db = getDb()
 
-    // Build line items for Stripe
+    // Build line items for Stripe (only needed for card payments)
     const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = []
     let subtotalCents = 0
     const orderItems: Array<{ productId: string; quantity: number; unitPriceCents: number; totalCents: number }> = []
@@ -102,13 +125,15 @@ router.post('/', async (req, res) => {
 
     const totalCents = subtotalCents + donationCents
 
-    // Create order in database (pending status)
+    // Create order in database
     const orderId = generateId()
+    const status = paymentMethod === 'check' ? 'pending_check' : 'pending'
+    const attendeeDataJson = attendees ? JSON.stringify(attendees) : null
 
     db.prepare(`
-      INSERT INTO orders (id, customer_email, customer_name, customer_phone, subtotal_cents, total_cents, donation_cents, status)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
-    `).run(orderId, customerEmail, customerName || null, customerPhone || null, subtotalCents, totalCents, donationCents)
+      INSERT INTO orders (id, customer_email, customer_name, customer_phone, customer_address, subtotal_cents, total_cents, donation_cents, payment_method, status, attendee_data)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(orderId, customerEmail, customerName || null, customerPhone || null, customerAddress || null, subtotalCents, totalCents, donationCents, paymentMethod, status, attendeeDataJson)
 
     // Create order items
     for (const item of orderItems) {
@@ -118,8 +143,44 @@ router.post('/', async (req, res) => {
       `).run(generateId(), orderId, item.productId, item.quantity, item.unitPriceCents, item.totalCents)
     }
 
-    // Create Stripe checkout session
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3052'
+    // Handle check payment - skip Stripe, redirect to confirmation
+    if (paymentMethod === 'check') {
+      // Send receipt email for check orders (async, don't block response)
+      const orderForEmail = {
+        id: orderId,
+        customer_email: customerEmail,
+        customer_name: customerName || null,
+        customer_phone: customerPhone || null,
+        total_cents: totalCents,
+        donation_cents: donationCents,
+        payment_method: 'check' as const,
+        items: await Promise.all(orderItems.map(async (item) => {
+          const product = db.prepare('SELECT name, category FROM products WHERE id = ?').get(item.productId) as any
+          return {
+            product_name: product.name,
+            quantity: item.quantity,
+            unit_price_cents: item.unitPriceCents,
+            category: product.category,
+          }
+        })),
+      }
+
+      // Send emails in background (don't await)
+      sendPurchaseReceipt(orderForEmail).catch(err => console.error('Failed to send receipt:', err))
+      sendAdminNotification(orderForEmail).catch(err => console.error('Failed to send admin notification:', err))
+
+      res.json({
+        orderId,
+        redirectUrl: `/check-confirmation?order_id=${orderId}`,
+      })
+      return
+    }
+
+    // Card payment - create Stripe checkout session
+    const baseUrl = process.env.BASE_URL
+    if (!baseUrl) {
+      throw new Error('BASE_URL environment variable is required')
+    }
 
     const session = await getStripe().checkout.sessions.create({
       payment_method_types: ['card'],

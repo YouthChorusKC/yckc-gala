@@ -42,15 +42,18 @@ export function initDb(): void {
     -- Orders
     CREATE TABLE IF NOT EXISTS orders (
       id TEXT PRIMARY KEY,
-      stripe_session_id TEXT UNIQUE,
+      stripe_session_id TEXT,
       stripe_payment_intent TEXT,
-      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'paid', 'refunded', 'cancelled')),
+      payment_method TEXT DEFAULT 'card' CHECK (payment_method IN ('card', 'check')),
+      status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'pending_check', 'paid', 'refunded', 'cancelled')),
       customer_email TEXT NOT NULL,
       customer_name TEXT,
       customer_phone TEXT,
+      customer_address TEXT,
       subtotal_cents INTEGER,
       total_cents INTEGER,
       donation_cents INTEGER DEFAULT 0,
+      attendee_data TEXT,
       notes TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       paid_at TEXT
@@ -114,6 +117,30 @@ export function initDb(): void {
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- Admin users
+    CREATE TABLE IF NOT EXISTS admin_users (
+      id TEXT PRIMARY KEY,
+      email TEXT UNIQUE NOT NULL,
+      password_hash TEXT NOT NULL,
+      reset_token TEXT,
+      reset_token_expires TEXT,
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      last_login TEXT
+    );
+
+    -- Email log
+    CREATE TABLE IF NOT EXISTS email_log (
+      id TEXT PRIMARY KEY,
+      order_id TEXT REFERENCES orders(id),
+      recipient TEXT NOT NULL,
+      email_type TEXT NOT NULL,
+      subject TEXT,
+      sent_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      resend_id TEXT,
+      status TEXT DEFAULT 'sent',
+      error TEXT
+    );
+
     -- Indexes for performance
     CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
     CREATE INDEX IF NOT EXISTS idx_orders_email ON orders(customer_email);
@@ -123,7 +150,36 @@ export function initDb(): void {
     CREATE INDEX IF NOT EXISTS idx_raffle_entries_order ON raffle_entries(order_id);
   `)
 
+  // Run migrations for existing databases
+  runMigrations(database)
+
   console.log('Database initialized')
+}
+
+// Add missing columns to existing tables
+function runMigrations(database: Database.Database): void {
+  const migrations = [
+    // Orders table migrations
+    { table: 'orders', column: 'payment_method', sql: "ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'card'" },
+    { table: 'orders', column: 'customer_address', sql: "ALTER TABLE orders ADD COLUMN customer_address TEXT" },
+    { table: 'orders', column: 'attendee_data', sql: "ALTER TABLE orders ADD COLUMN attendee_data TEXT" },
+  ]
+
+  for (const migration of migrations) {
+    try {
+      // Check if column exists
+      const columns = database.prepare(`PRAGMA table_info(${migration.table})`).all() as any[]
+      const hasColumn = columns.some(col => col.name === migration.column)
+
+      if (!hasColumn) {
+        database.exec(migration.sql)
+        console.log(`Migration: Added ${migration.column} to ${migration.table}`)
+      }
+    } catch (err) {
+      // Column might already exist or other error - ignore
+      console.log(`Migration skipped for ${migration.table}.${migration.column}`)
+    }
+  }
 }
 
 // Helper to generate IDs

@@ -137,4 +137,61 @@ router.post('/bulk', (req, res) => {
   res.json(tables)
 })
 
+// Get unassigned attendees (for assignment modal)
+router.get('/unassigned/attendees', (req, res) => {
+  const db = getDb()
+
+  const attendees = db.prepare(`
+    SELECT a.*, o.customer_email as order_email, o.customer_name as order_name
+    FROM attendees a
+    JOIN orders o ON a.order_id = o.id
+    WHERE a.table_id IS NULL AND o.status IN ('paid', 'pending_check')
+    ORDER BY a.name, o.customer_name
+  `).all()
+
+  res.json(attendees)
+})
+
+// Bulk assign attendees to table
+router.post('/:id/assign', (req, res) => {
+  const db = getDb()
+  const { attendeeIds } = req.body
+  const tableId = req.params.id
+
+  if (!attendeeIds || !Array.isArray(attendeeIds) || attendeeIds.length === 0) {
+    return res.status(400).json({ error: 'attendeeIds array is required' })
+  }
+
+  // Verify table exists
+  const table = db.prepare('SELECT * FROM tables WHERE id = ?').get(tableId) as any
+  if (!table) {
+    return res.status(404).json({ error: 'Table not found' })
+  }
+
+  // Check capacity
+  const currentCount = db.prepare('SELECT COUNT(*) as count FROM attendees WHERE table_id = ?').get(tableId) as any
+  const availableSeats = table.capacity - currentCount.count
+
+  if (attendeeIds.length > availableSeats) {
+    return res.status(400).json({ error: `Only ${availableSeats} seats available at this table` })
+  }
+
+  // Assign attendees
+  const stmt = db.prepare('UPDATE attendees SET table_id = ? WHERE id = ?')
+  for (const attendeeId of attendeeIds) {
+    stmt.run(tableId, attendeeId)
+  }
+
+  res.json({ success: true, assigned: attendeeIds.length })
+})
+
+// Remove attendee from table
+router.post('/:id/unassign/:attendeeId', (req, res) => {
+  const db = getDb()
+
+  db.prepare('UPDATE attendees SET table_id = NULL WHERE id = ?').run(req.params.attendeeId)
+
+  res.json({ success: true })
+})
+
 export default router

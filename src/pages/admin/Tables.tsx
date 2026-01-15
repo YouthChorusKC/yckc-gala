@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { getTables, getTable, createTable, createTablesBulk, deleteTable, updateAttendee, type Table, type Attendee } from '../../lib/api'
+import { getTables, getTable, createTable, createTablesBulk, deleteTable, updateAttendee, getUnassignedAttendees, assignAttendeesToTable, type Table, type Attendee } from '../../lib/api'
 
 // Table layout based on floor plan - tables numbered by proximity to stage
 // Row 1 (closest to stage): 3, 1, 2, 4
@@ -24,6 +24,12 @@ export default function AdminTables() {
   const [newTableName, setNewTableName] = useState('')
   const [bulkCount, setBulkCount] = useState(5)
   const [viewMode, setViewMode] = useState<'floor' | 'list'>('floor')
+
+  // Assignment modal state
+  const [showAssignModal, setShowAssignModal] = useState(false)
+  const [unassignedAttendees, setUnassignedAttendees] = useState<Attendee[]>([])
+  const [selectedAttendeeIds, setSelectedAttendeeIds] = useState<Set<string>>(new Set())
+  const [loadingUnassigned, setLoadingUnassigned] = useState(false)
 
   useEffect(() => {
     loadTables()
@@ -75,6 +81,48 @@ export default function AdminTables() {
     if (selectedTable) viewTable(selectedTable.id)
     loadTables()
   }
+
+  const openAssignModal = async () => {
+    setLoadingUnassigned(true)
+    setShowAssignModal(true)
+    setSelectedAttendeeIds(new Set())
+    try {
+      const attendees = await getUnassignedAttendees()
+      setUnassignedAttendees(attendees)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoadingUnassigned(false)
+    }
+  }
+
+  const toggleAttendeeSelection = (id: string) => {
+    setSelectedAttendeeIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
+  const handleAssign = async () => {
+    if (!selectedTable || selectedAttendeeIds.size === 0) return
+    try {
+      await assignAttendeesToTable(selectedTable.id, Array.from(selectedAttendeeIds))
+      setShowAssignModal(false)
+      viewTable(selectedTable.id)
+      loadTables()
+    } catch (err: any) {
+      alert(err.message)
+    }
+  }
+
+  const availableSeats = selectedTable
+    ? selectedTable.capacity - selectedTable.attendees.length
+    : 0
 
   // Find table by number for floor plan view
   const getTableByNumber = (num: number): Table | undefined => {
@@ -248,6 +296,15 @@ export default function AdminTables() {
                     </div>
                   )}
 
+                  {availableSeats > 0 && (
+                    <button
+                      onClick={openAssignModal}
+                      className="w-full mb-4 py-2 bg-gala-gold text-gala-navy rounded-lg font-medium hover:bg-gala-goldLight transition-colors"
+                    >
+                      + Assign Attendees ({availableSeats} seats available)
+                    </button>
+                  )}
+
                   <h3 className="font-semibold mb-2">Seated Attendees</h3>
                   {selectedTable.attendees.length === 0 ? (
                     <p className="text-gray-500 text-sm">No one assigned yet</p>
@@ -346,6 +403,15 @@ export default function AdminTables() {
                     {selectedTable.attendees.length} / {selectedTable.capacity} seats filled
                   </div>
 
+                  {availableSeats > 0 && (
+                    <button
+                      onClick={openAssignModal}
+                      className="w-full mb-4 py-2 bg-gala-gold text-gala-navy rounded-lg font-medium hover:bg-gala-goldLight transition-colors"
+                    >
+                      + Assign Attendees ({availableSeats} seats available)
+                    </button>
+                  )}
+
                   <h3 className="font-semibold mb-2">Seated Attendees</h3>
                   {selectedTable.attendees.length === 0 ? (
                     <p className="text-gray-500 text-sm">No one assigned yet</p>
@@ -380,6 +446,95 @@ export default function AdminTables() {
           </div>
         )}
       </main>
+
+      {/* Assignment Modal */}
+      {showAssignModal && selectedTable && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h2 className="text-xl font-semibold">Assign to {selectedTable.name}</h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {availableSeats} seat{availableSeats !== 1 ? 's' : ''} available
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowAssignModal(false)}
+                  className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                >
+                  &times;
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 overflow-y-auto flex-1">
+              {loadingUnassigned ? (
+                <p className="text-gray-500 text-center py-8">Loading unassigned attendees...</p>
+              ) : unassignedAttendees.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No unassigned attendees</p>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Select attendees to assign ({selectedAttendeeIds.size} selected, max {availableSeats})
+                  </p>
+                  {unassignedAttendees.map(attendee => (
+                    <label
+                      key={attendee.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        selectedAttendeeIds.has(attendee.id)
+                          ? 'border-yckc-primary bg-yckc-primary/5'
+                          : 'border-gray-200 hover:border-gray-300'
+                      } ${
+                        selectedAttendeeIds.size >= availableSeats && !selectedAttendeeIds.has(attendee.id)
+                          ? 'opacity-50 cursor-not-allowed'
+                          : ''
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedAttendeeIds.has(attendee.id)}
+                        onChange={() => toggleAttendeeSelection(attendee.id)}
+                        disabled={selectedAttendeeIds.size >= availableSeats && !selectedAttendeeIds.has(attendee.id)}
+                        className="rounded text-yckc-primary focus:ring-yckc-primary"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">
+                          {attendee.name || <span className="text-orange-500">(Name not provided)</span>}
+                        </div>
+                        <div className="text-xs text-gray-500 truncate">
+                          Order: {attendee.order_name || attendee.order_email}
+                        </div>
+                        {attendee.dietary_restrictions && (
+                          <div className="text-xs text-amber-600">
+                            Dietary: {attendee.dietary_restrictions}
+                          </div>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t bg-gray-50 flex gap-3">
+              <button
+                onClick={() => setShowAssignModal(false)}
+                className="flex-1 py-2 px-4 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAssign}
+                disabled={selectedAttendeeIds.size === 0}
+                className="flex-1 py-2 px-4 bg-yckc-primary text-white rounded-lg hover:bg-yckc-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Assign {selectedAttendeeIds.size > 0 ? `(${selectedAttendeeIds.size})` : ''}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

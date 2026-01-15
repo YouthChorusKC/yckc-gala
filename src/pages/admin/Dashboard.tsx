@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getSummary, setAdminPassword, getAdminPassword, getExportUrl, updateProduct, type Summary, type Product } from '../../lib/api'
+import { getSummary, setAdminPassword, getAdminPassword, getExportUrl, updateProduct, getCurrentUser, logout, type Summary, type Product } from '../../lib/api'
 import { formatCents } from '../../lib/cart'
 
 interface EditingProduct {
@@ -18,7 +18,18 @@ export default function AdminDashboard() {
   const [needsAuth, setNeedsAuth] = useState(!getAdminPassword())
   const [editingProduct, setEditingProduct] = useState<EditingProduct | null>(null)
   const [saving, setSaving] = useState(false)
+  const [currentUser, setCurrentUser] = useState<{ id: string; email: string } | null>(null)
   const navigate = useNavigate()
+
+  // Check for cookie auth on mount
+  useEffect(() => {
+    getCurrentUser().then(result => {
+      if (result?.user) {
+        setCurrentUser(result.user)
+        setNeedsAuth(false)
+      }
+    })
+  }, [])
 
   const loadSummary = async () => {
     try {
@@ -79,6 +90,13 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleLogout = async () => {
+    await logout()
+    setCurrentUser(null)
+    localStorage.removeItem('adminPassword')
+    navigate('/admin/login')
+  }
+
   if (needsAuth) {
     return (
       <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
@@ -95,6 +113,11 @@ export default function AdminDashboard() {
           <button type="submit" className="w-full btn-primary">
             Login
           </button>
+          <div className="mt-4 text-center">
+            <Link to="/admin/login" className="text-sm text-gala-gold hover:underline">
+              Use email login
+            </Link>
+          </div>
         </form>
       </div>
     )
@@ -113,9 +136,20 @@ export default function AdminDashboard() {
       <header className="bg-yckc-primary text-white py-4">
         <div className="max-w-6xl mx-auto px-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold">YCKC Gala Admin</h1>
-          <Link to="/" className="text-white/80 hover:text-white">
-            View Site &rarr;
-          </Link>
+          <div className="flex items-center gap-4">
+            {currentUser && (
+              <span className="text-white/70 text-sm">{currentUser.email}</span>
+            )}
+            <Link to="/" className="text-white/80 hover:text-white">
+              View Site
+            </Link>
+            <button
+              onClick={handleLogout}
+              className="text-white/80 hover:text-white text-sm"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -134,14 +168,25 @@ export default function AdminDashboard() {
               {formatCents(summary?.revenue.total || 0)}
             </div>
             <div className="text-sm text-gray-500 mt-1">
-              {summary?.revenue.orderCount || 0} orders
+              {summary?.orders?.paid || 0} paid orders
+              {(summary?.orders?.pending || 0) + (summary?.orders?.pendingCheck || 0) > 0 && (
+                <span className="text-orange-500 ml-1">
+                  ({(summary?.orders?.pending || 0) + (summary?.orders?.pendingCheck || 0)} pending)
+                </span>
+              )}
             </div>
           </div>
 
           <div className="card">
-            <div className="text-sm text-gray-500 uppercase tracking-wide">Donations</div>
+            <div className="text-sm text-gray-500 uppercase tracking-wide">Orders</div>
             <div className="text-3xl font-bold text-yckc-secondary">
-              {formatCents(summary?.revenue.donations || 0)}
+              {summary?.orders?.total || 0}
+            </div>
+            <div className="text-sm text-gray-500 mt-1 space-y-0.5">
+              <div className="text-green-600">{summary?.orders?.paid || 0} paid</div>
+              {(summary?.orders?.pendingCheck || 0) > 0 && (
+                <div className="text-orange-500">{summary?.orders?.pendingCheck || 0} awaiting check</div>
+              )}
             </div>
           </div>
 
@@ -152,6 +197,11 @@ export default function AdminDashboard() {
             </div>
             <div className="text-sm text-gray-500 mt-1">
               {summary?.attendees.namesCollected || 0} names collected
+              {(summary?.attendees.total || 0) - (summary?.attendees.namesCollected || 0) > 0 && (
+                <span className="text-orange-500 ml-1">
+                  ({(summary?.attendees.total || 0) - (summary?.attendees.namesCollected || 0)} unnamed)
+                </span>
+              )}
             </div>
           </div>
 
@@ -162,6 +212,38 @@ export default function AdminDashboard() {
             </div>
           </div>
         </div>
+
+        {/* Revenue Breakdown */}
+        {summary?.revenue?.byCategory && (
+          <div className="card mb-8">
+            <h2 className="text-xl font-semibold mb-4">Revenue Breakdown</h2>
+            <div className="space-y-3">
+              {[
+                { label: 'Tickets', value: summary.revenue.byCategory.ticket, color: 'bg-blue-500' },
+                { label: 'Sponsorships', value: summary.revenue.byCategory.sponsorship, color: 'bg-green-500' },
+                { label: 'Raffle', value: summary.revenue.byCategory.raffle, color: 'bg-purple-500' },
+                { label: 'Donations', value: summary.revenue.byCategory.donation, color: 'bg-amber-500' },
+              ].map(({ label, value, color }) => {
+                const total = summary.revenue.total || 1
+                const percent = Math.round((value / total) * 100)
+                return (
+                  <div key={label}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{label}</span>
+                      <span className="text-gray-600">{formatCents(value)} ({percent}%)</span>
+                    </div>
+                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full ${color} transition-all duration-500`}
+                        style={{ width: `${percent}%` }}
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Quick Links */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">

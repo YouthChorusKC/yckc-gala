@@ -1,5 +1,75 @@
 const API_BASE = '/api'
 
+// Auth functions
+export async function login(email: string, password: string): Promise<{ user: { id: string; email: string } }> {
+  const res = await fetch(`${API_BASE}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || 'Login failed')
+  }
+  return res.json()
+}
+
+export async function logout(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, {
+    method: 'POST',
+    credentials: 'include',
+  })
+}
+
+export async function getCurrentUser(): Promise<{ user: { id: string; email: string } } | null> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/me`, {
+      credentials: 'include',
+    })
+    if (!res.ok) return null
+    return res.json()
+  } catch {
+    return null
+  }
+}
+
+export async function forgotPassword(email: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/forgot`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || 'Request failed')
+  }
+}
+
+export async function resetPassword(token: string, password: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/reset`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || 'Reset failed')
+  }
+}
+
+export async function setupAdmin(email: string, password: string): Promise<void> {
+  const res = await fetch(`${API_BASE}/auth/setup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  })
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}))
+    throw new Error(error.error || 'Setup failed')
+  }
+}
+
 export interface Product {
   id: string
   name: string
@@ -57,15 +127,28 @@ export interface Table {
 }
 
 export interface Summary {
+  orders: {
+    total: number
+    paid: number
+    pending: number
+    pendingCheck: number
+  }
   revenue: {
     total: number
     donations: number
     orderCount: number
+    byCategory: {
+      ticket: number
+      sponsorship: number
+      raffle: number
+      donation: number
+    }
   }
   attendees: {
     total: number
     namesCollected: number
     checkedIn: number
+    assigned: number
   }
   raffleEntries: number
   products: Array<Product & { sold: number }>
@@ -83,8 +166,11 @@ export async function createCheckout(data: {
   customerEmail: string
   customerName?: string
   customerPhone?: string
+  customerAddress?: string
   donationCents?: number
-}): Promise<{ sessionUrl: string; orderId: string }> {
+  paymentMethod?: 'card' | 'check'
+  attendees?: Array<{ name?: string; dietary?: string }>
+}): Promise<{ sessionUrl?: string; orderId: string; redirectUrl?: string }> {
   const res = await fetch(`${API_BASE}/checkout`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -115,8 +201,10 @@ export function getAdminPassword(): string {
 async function adminFetch(url: string, options: RequestInit = {}) {
   const res = await fetch(url, {
     ...options,
+    credentials: 'include',
     headers: {
       ...options.headers,
+      // Include legacy password header for backward compatibility
       'x-admin-password': getAdminPassword(),
     },
   })
@@ -200,6 +288,23 @@ export async function createTablesBulk(count: number, prefix?: string): Promise<
 
 export async function deleteTable(id: string): Promise<void> {
   await adminFetch(`${API_BASE}/tables/${id}`, { method: 'DELETE' })
+}
+
+export async function getUnassignedAttendees(): Promise<Attendee[]> {
+  const res = await adminFetch(`${API_BASE}/tables/unassigned/attendees`)
+  return res.json()
+}
+
+export async function assignAttendeesToTable(tableId: string, attendeeIds: string[]): Promise<void> {
+  await adminFetch(`${API_BASE}/tables/${tableId}/assign`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ attendeeIds }),
+  })
+}
+
+export async function unassignAttendee(tableId: string, attendeeId: string): Promise<void> {
+  await adminFetch(`${API_BASE}/tables/${tableId}/unassign/${attendeeId}`, { method: 'POST' })
 }
 
 export function getExportUrl(type: 'attendees' | 'orders' | 'raffle' | 'donors'): string {

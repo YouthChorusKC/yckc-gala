@@ -1,5 +1,6 @@
 import express from 'express'
 import cors from 'cors'
+import cookieParser from 'cookie-parser'
 import { config } from 'dotenv'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -11,6 +12,7 @@ import ordersRouter from './routes/orders.js'
 import attendeesRouter from './routes/attendees.js'
 import tablesRouter from './routes/tables.js'
 import reportsRouter from './routes/reports.js'
+import authRouter from './routes/auth.js'
 
 config()
 
@@ -23,13 +25,20 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }))
 
 // Other routes use JSON
 app.use(express.json())
-app.use(cors())
+app.use(cookieParser())
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production'
+    ? process.env.BASE_URL
+    : 'http://localhost:5173',
+  credentials: true,
+}))
 
 // Initialize database and seed if empty
 initDb()
 seedIfEmpty()
 
 // API routes
+app.use('/api/auth', authRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/checkout', checkoutRouter)
 app.use('/api/webhook', webhookRouter)
