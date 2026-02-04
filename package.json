@@ -9,7 +9,9 @@
     "dev:client": "vite",
     "build": "tsc -p tsconfig.server.json && vite build",
     "start": "node dist/server/index.js",
-    "seed": "tsx server/seed.ts"
+    "seed": "tsx server/seed.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -24,6 +26,9 @@
     "stripe": "^17.5.0"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bcrypt": "^6.0.0",
     "@types/better-sqlite3": "^7.6.12",
     "@types/cookie-parser": "^1.4.10",
@@ -36,6 +41,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
+    "jsdom": "^28.0.0",
     "postcss": "^8.5.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -44,6 +50,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
     "vite": "^6.0.7",
+    "vitest": "^4.0.18",
     "zustand": "^5.0.3"
   }
 }
